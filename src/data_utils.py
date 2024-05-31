@@ -3,29 +3,57 @@ import pandas as pd
 
 
 class RawData:
-    def __init__(self, config=None):
+    def __init__(self, config):
+        """
+        Initializes a new instance of the RawData class.
+        Args:
+            config (dict, optional): A dictionary of configuration parameters.
+        Initializes the following instance variables:
+            - config (dict): The configuration parameters.
+            - category_list (pandas.DataFrame): The loaded category list data.
+            - item_list (pandas.DataFrame): The loaded item list data.
+            - shop_list (pandas.DataFrame): The loaded shop list data.
+            - transaction (pandas.DataFrame): The loaded transaction data.
+        If the env is set to 'local', known  data schema issues are fixed.
+        """
         self.config = config
 
         # load data
-        self.load_data()
+        self.load_raw_data()
 
         # fix data schemas
         if self.config['env'] == 'local':
             self.fix_data_schemas()
 
-    def load_data(self):
-        if self.config['env'] == 'local':
-            self.load_all_data_from_csv()
+    def load_raw_data(self):
+        """
+        Load raw data based on the environment configuration.
+        Args:
+            self (RawData): The instance of the RawData class.
+        """
 
-    def load_all_data_from_csv(self):
+        if self.config['env'] == 'local':
+            self.load_all_raw_data_from_csv()
+
+    def load_all_raw_data_from_csv(self):
+        """
+        Load all raw data from CSV files.
+        Args:
+            self (RawData): The instance of the RawData class.
+        """
         print('Loading data..', end=' ')
-        self.category_list = self.load_csv(self.config['fname_categories'])
-        self.item_list = self.load_csv(self.config['fname_items'])
-        self.shop_list = self.load_csv(self.config['fname_shops'])
-        self.transaction = self.load_csv(self.config['fname_transactions'])
+        self.category_list = self.load_from_csv(self.config['fn_categories'])
+        self.item_list = self.load_from_csv(self.config['fn_items'])
+        self.shop_list = self.load_from_csv(self.config['fn_shops'])
+        self.transactions = self.load_from_csv(self.config['fn_transactions'])
         print('Done.')
 
-    def load_csv(self, fname: str):
+    def load_from_csv(self, fname: str):
+        """
+        Load data from a CSV file.
+        Args:
+            fname (str): The name of the CSV file to load.
+        """
         fpath = os.path.join(self.config['root_data_path'], fname)
         df = pd.read_csv(fpath)
         # remove the unnecessary columns
@@ -34,9 +62,13 @@ class RawData:
         return df
 
     def fix_data_schemas(self):
-        # Here known schema issues are fixed:
+        """
+        Fixes known schema issues
+        Args:
+            self (object): The instance of the class.
+        """
         print('Fixing data schemas..', end=' ')
-        self.transaction.rename(
+        self.transactions.rename(
             columns={
                 'shop': 'shop_id',
                 'item': 'item_id'

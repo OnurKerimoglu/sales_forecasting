@@ -1,7 +1,7 @@
 local:
   env: 'local'
   root_data_path: '/Users/Onur/opt/MLrepos/shop_sales_prediction/data'
-  fname_categories: 'category_list.csv'
-  fname_items: 'item_list.csv'
-  fname_shops: 'shop_list.csv'
-  fname_transactions: 'transaction.csv'
+  fn_categories: 'category_list.csv'
+  fn_items: 'item_list.csv'
+  fn_shops: 'shop_list.csv'
+  fn_transactions: 'transaction.csv'
