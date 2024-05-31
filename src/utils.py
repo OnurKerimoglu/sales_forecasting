@@ -2,7 +2,7 @@ import yaml
 
 
 class Utils:
-    def read_config_for_env(config_path="config.yml", env="local"):
+    def read_config_for_env(config_path="config/config.yml", env="local"):
         """
         Reads the config file for the specified environment.
         Args:
