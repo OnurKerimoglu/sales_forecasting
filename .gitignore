@@ -1,0 +1,9 @@
+# folders
+data/
+.venv/
+
+# system files
+.DS_Store
+
+# cpython
+*.pyc
