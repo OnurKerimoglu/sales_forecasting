@@ -8,11 +8,11 @@ We will explore and evaluate the efficacy of different ML-methods to address thi
 1. Create a Python 3.11 based environment of your preference and install the repository as a package (`pip install -e .`).
 2. Adjust the rootpath and the names of raw data files for the 'local' environment inside: [config.yml](config/config.yml).
 
-## Raw Data
+## Data
 Raw data comprise following tables and fields:
 - shop_list: ['shop_name', 'shop_id]
 - item_list: ['item_name', 'item_id', 'item_category_id']
 - category_list: ['item_category_name', 'item_category_id']
 - transaction: ['date', 'shop', 'item', 'price', 'amount' ]
 
-The `Data` class provided by [data_utils.py](src/data_utils.py) module provides all the data upon instantiation. The schema of the transaction data is fixed ('shop', 'item' -> 'shop_id', 'item_id').
+The `Data` class provided by [data_utils.py](src/data_utils.py) module provides all the data upon instantiation. The schema of the transaction data is fixed ('shop', 'item' -> 'shop_id', 'item_id'). The `Data` class also provides functions to merge all necessary tables in one table, and clean the implausible (negative) and outliers find in price and amount data, see [EDA.ipynb](notebooks/EDA.ipynb) for an exploratory data analysis.
