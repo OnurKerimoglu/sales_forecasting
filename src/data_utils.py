@@ -139,6 +139,7 @@ class Data:
         # Add year and month
         df['month'] = df['date'].dt.month
         df['year'] = df['date'].dt.year
+        df['dayofweek'] = df['date'].dt.dayofweek
         return df
 
     def clean_data(self, df):
