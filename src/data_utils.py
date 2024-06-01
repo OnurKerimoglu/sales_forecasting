@@ -3,17 +3,37 @@ import pandas as pd
 
 
 class Data:
+    """
+    A class used to load and clean data.
+    Attributes:
+        config (dict): The configuration parameters.
+        category_list (pandas.DataFrame): The loaded category list data.
+        item_list (pandas.DataFrame): The loaded item list data.
+        shop_list (pandas.DataFrame): The loaded shop list data.
+        transaction (pandas.DataFrame): The loaded transaction data.
+    Methods:
+        load_raw_data(self)
+        load_all_raw_data_from_csv(self)
+        fix_data_schemas(self)
+        merge_data(self)
+        handle_dates(self, df)
+        clean_data(self, df)
+        find_outlier_limits_iqr(self, df, column)
+        find_outlier_limits_std(self, df, column)
+        invalidate_negatives(self, df, columns)
+        invalidate_outliers(self, df, columns, method='std')
+    """
     def __init__(self, config):
         """
         Initializes a new instance of the RawData class.
         Args:
             config (dict, optional): A dictionary of configuration parameters.
         Initializes the following instance variables:
-            - config (dict): The configuration parameters.
-            - category_list (pandas.DataFrame): The loaded category list data.
-            - item_list (pandas.DataFrame): The loaded item list data.
-            - shop_list (pandas.DataFrame): The loaded shop list data.
-            - transaction (pandas.DataFrame): The loaded transaction data.
+            - config (dict)
+            - category_list (pandas.DataFrame)
+            - item_list (pandas.DataFrame)
+            - shop_list (pandas.DataFrame)
+            - transaction (pandas.DataFrame)
         If the env is set to 'local', known  data schema issues are fixed.
         """
         self.config = config
@@ -103,6 +123,20 @@ class Data:
             how='left',
             on='shop_id')
         return data_merged
+
+    def handle_dates(self, df):
+        """
+        Add 'month' and 'year' columns to the df.
+        Args:
+            df (pandas.DataFrame): The DataFrame to be modified.
+        Returns:
+            pandas.DataFrame: The modified DF with 'month' and 'year' columns.
+        """
+        df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
+        # Add year and month
+        df['month'] = df['date'].dt.month
+        df['year'] = df['date'].dt.year
+        return df
 
     def clean_data(self, df):
         """
@@ -211,5 +245,7 @@ class Data:
 #     data = Data(Utils.read_config_for_env())
 #     # create a combined table to ease data processing and visualisation
 #     data_merged = data.merge_data()
+#     # create date objects and add month and year
+#     data_merged = data.handle_dates(data_merged)
 #     # clean the data from negative values and outliers for price and amount
 #     data_cleaned = data.clean_data(data_merged)
