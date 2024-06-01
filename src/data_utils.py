@@ -11,6 +11,7 @@ class Data:
         item_list (pandas.DataFrame): The loaded item list data.
         shop_list (pandas.DataFrame): The loaded shop list data.
         transaction (pandas.DataFrame): The loaded transaction data.
+        test (pandas.DataFrame): The loaded test data.
     Methods:
         load_raw_data(self)
         load_all_raw_data_from_csv(self)
@@ -34,6 +35,7 @@ class Data:
             - item_list (pandas.DataFrame)
             - shop_list (pandas.DataFrame)
             - transaction (pandas.DataFrame)
+            - test (pandas.DataFrame)
         If the env is set to 'local', known  data schema issues are fixed.
         """
         self.config = config
@@ -66,6 +68,7 @@ class Data:
         self.item_list = self.load_from_csv(self.config['fn_items'])
         self.shop_list = self.load_from_csv(self.config['fn_shops'])
         self.transactions = self.load_from_csv(self.config['fn_transactions'])
+        self.test = self.load_from_csv(self.config['fn_test'])
         print('Done.')
 
     def load_from_csv(self, fname: str):

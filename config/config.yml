@@ -5,3 +5,4 @@ local:
   fn_items: 'item_list.csv'
   fn_shops: 'shop_list.csv'
   fn_transactions: 'transaction.csv'
+  fn_test: 'test.csv'
