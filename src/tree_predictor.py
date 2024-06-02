@@ -16,7 +16,7 @@ class TreePredictor:
         self.config = config
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
-        self.rawdata = None
+        self.data = None
         self.df_daily_train = None
         self.df_daily_val = None
 
@@ -25,7 +25,7 @@ class TreePredictor:
 
     
     def prep_rawdata(self):
-        self.rawdata = Data(self.config)
+        self.data = Data(self.config)
 
         # load merged data:
         data_m = self.prep_merged_data()
@@ -39,8 +39,8 @@ class TreePredictor:
 
 
     def prep_merged_data(self):
-        data_merged = self.rawdata.merge_data()
-        data_merged = self.rawdata.handle_dates(data_merged)
+        data_merged = self.data.merge_data()
+        data_merged = self.data.handle_dates(data_merged)
         # data_cleaned = data.clean_data(data_merged)
         return data_merged
 
@@ -70,15 +70,15 @@ class TreePredictor:
         
         print('Cleaning training data')
         # clean the training data from negative values and outliers
-        self.df_daily_train = self.rawdata.clean_data(
-            self.data_daily_train,
+        self.df_daily_train = self.data.clean_data(
+            self.df_daily_train,
             rem_negs=True,
             rem_ol=True)
 
         print('Cleaning validation data')
         # clean the validation data from negative values (but not outliers)
-        self.df_daily_val = self.rawdata.clean_data(
-            self.data_daily_val,
+        self.df_daily_val = self.data.clean_data(
+            self.df_daily_val,
             rem_negs=True,
             rem_ol=False)
     
