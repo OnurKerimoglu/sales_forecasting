@@ -140,20 +140,25 @@ class Data:
         df['month'] = df['date'].dt.month
         df['year'] = df['date'].dt.year
         df['dayofweek'] = df['date'].dt.dayofweek
+        df['monthly_period'] = df['date'].dt.to_period('M')
         return df
 
-    def clean_data(self, df):
+    def clean_data(self, df, rem_negs=True, rem_ol=True):
         """
         Clean the given df by marking rows with negative values and outliers
         in the 'price' and 'amount' columns as invalid.
         Args:
             df (pandas.DataFrame): The dataframe to be cleaned.
+            rem_negs (bool): Whether to remove rows with negative values
+            rem_ol (bool): Whether to remove rows with outliers
         Returns:
             pandas.DataFrame: The cleaned dataframe
         """
         df['valid'] = True
-        df = self.invalidate_negatives(df, ['price', 'amount'])
-        df = self.invalidate_outliers(df, ['price', 'amount'])
+        if rem_negs:
+            df = self.invalidate_negatives(df, ['price', 'amount'])
+        if rem_ol:
+            df = self.invalidate_outliers(df, ['price', 'amount'])
         df_clean = df.loc[df['valid'], :]
         print(f'Count of cleaned rows: {df.shape[0]-df_clean.shape[0]}')
         df_clean = df_clean.drop('valid', axis=1)
