@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 
 
@@ -79,6 +80,10 @@ class Data:
         """
         fpath = os.path.join(self.config['root_data_path'], fname)
         df = pd.read_csv(fpath)
+        float64cols = df.select_dtypes(include='float64').columns
+        int64cols = df.select_dtypes(include='int64').columns
+        df = df.astype({c: np.float32 for c in float64cols})
+        df = df.astype({c: np.int32 for c in int64cols})
         # remove the unnecessary columns
         cols_to_remove = df.columns.str.contains('Unnamed: 0', case=False)
         df.drop(df.columns[cols_to_remove], axis=1, inplace=True)
@@ -137,9 +142,9 @@ class Data:
         """
         df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
         # Add year and month
-        df['month'] = df['date'].dt.month
-        df['year'] = df['date'].dt.year
-        df['dayofweek'] = df['date'].dt.dayofweek
+        # df['month'] = df['date'].dt.month
+        # df['year'] = df['date'].dt.year
+        # df['dayofweek'] = df['date'].dt.dayofweek
         df['monthly_period'] = df['date'].dt.to_period('M')
         return df
 
@@ -258,3 +263,4 @@ class Data:
 #     data_merged = data.handle_dates(data_merged)
 #     # clean the data from negative values and outliers for price and amount
 #     data_cleaned = data.clean_data(data_merged)
+#     data_cleaned.info()
