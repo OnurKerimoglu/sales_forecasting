@@ -6,3 +6,7 @@ local:
   fn_shops: 'shop_list.csv'
   fn_transactions: 'transaction.csv'
   fn_test: 'test.csv'
+  fn_train_base: 'train_base.parquet'
+  fn_train_ts: 'train_ts.parquet'
+  fn_val_base: 'val_base.parquet'
+  fn_val_ts: 'val_ts.parquet'
