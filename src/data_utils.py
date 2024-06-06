@@ -5,7 +5,7 @@ import pandas as pd
 import parquet
 
 
-class Data:
+class RawData:
     """
     A class used to load and clean data.
     Attributes:

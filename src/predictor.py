@@ -3,7 +3,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 
 # local imports
-from data_utils import Data
+from data_utils import RawData
 
 
 class BasePredictor:
@@ -16,7 +16,7 @@ class BasePredictor:
         self.config = config
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
-        self.data = None
+        self.raw_data = None
         self.df_daily_train = None
         self.df_daily_val = None
 
@@ -25,7 +25,7 @@ class BasePredictor:
 
     
     def prep_rawdata(self):
-        self.data = Data(self.config)
+        self.raw_data = RawData(self.config)
 
         # load merged data:
         data_m = self.prep_merged_data()
@@ -39,8 +39,8 @@ class BasePredictor:
 
 
     def prep_merged_data(self):
-        data_merged = self.data.merge_data()
-        data_merged = self.data.handle_dates(data_merged)
+        data_merged = self.raw_data.merge_data()
+        data_merged = self.raw_data.handle_dates(data_merged)
         # data_cleaned = data.clean_data(data_merged)
         return data_merged
 
@@ -70,14 +70,14 @@ class BasePredictor:
         
         print('Cleaning training data')
         # clean the training data from negative values and outliers
-        self.df_daily_train = self.data.clean_data(
+        self.df_daily_train = self.raw_data.clean_data(
             self.df_daily_train,
             rem_negs=True,
             rem_ol=True)
 
         print('Cleaning validation data')
         # clean the validation data from negative values (but not outliers)
-        self.df_daily_val = self.data.clean_data(
+        self.df_daily_val = self.raw_data.clean_data(
             self.df_daily_val,
             rem_negs=True,
             rem_ol=False)
