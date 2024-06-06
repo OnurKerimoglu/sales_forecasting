@@ -6,7 +6,7 @@ import pandas as pd
 from data_utils import Data
 
 
-class TreePredictor:
+class BasePredictor:
     def __init__(
             self,
             config,
