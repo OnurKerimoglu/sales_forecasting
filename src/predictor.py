@@ -56,27 +56,8 @@ class BasePredictor:
             columns,
             'val'
             )
-        
         # prepare X_train, y_train, X_val, y_val
         self.prep_X_y()
-
-    def prep_raw_data(self):
-
-        # load merged data:
-        data_m = self.prep_merged_data()
-
-        # split train and test data
-        self.split_train_test_data(data_m)
-        
-        # clean the data
-        self.clean_daily_data()
-        print('Prepared daily raw data.')
-
-    def prep_merged_data(self):
-        data_merged = self.raw_data.merge_data()
-        data_merged = self.raw_data.handle_dates(data_merged)
-        # data_cleaned = data.clean_data(data_merged)
-        return data_merged
     
     def prep_monthly_data_for_split(
             self,
@@ -127,6 +108,62 @@ class BasePredictor:
 
         return df_base
     
+    def prep_raw_data(self):
+
+        # load merged data:
+        data_m = self.prep_merged_data()
+
+        # split train and test data
+        self.split_train_test_data(data_m)
+        
+        # clean the data
+        self.clean_daily_data()
+        print('Prepared daily raw data.')
+
+    def prep_merged_data(self):
+        data_merged = self.raw_data.merge_data()
+        data_merged = self.raw_data.handle_dates(data_merged)
+        # data_cleaned = data.clean_data(data_merged)
+        return data_merged
+    
+    def split_train_test_data(self, df):
+
+        # find out the total number of monthly periods available
+        num_tot_mon = df.monthly_period.unique().shape[0]
+        # total monthly periods - lag months gives effective total months
+        num_efftot_mon = num_tot_mon - self.num_lag_mon
+        # number of months to use for validation
+        num_val_mon = round(num_efftot_mon * self.val_ratio)
+
+        # Determine the start date for validation
+        y_last = df['date'].max().year
+        m_last = df['date'].max().month
+        given_date = datetime(y_last, m_last+1, 1)
+        # train data extends until (excluding) this date:
+        date_val_start = given_date - relativedelta(months=num_val_mon)
+        # validation data starts self.num_lag_mon before, to account for lag
+        rel_delta_lag_months = relativedelta(months=self.num_lag_mon)
+        date_val_start_wlag = date_val_start - rel_delta_lag_months
+        # Do the split
+        self.df_daily_val = df.loc[df['date'] >= date_val_start_wlag, :].copy()
+        self.df_daily_train = df.loc[df['date'] < date_val_start, :].copy()
+    
+    def clean_daily_data(self):
+        
+        print('Cleaning training data')
+        # clean the training data from negative values and outliers
+        self.df_daily_train = self.raw_data.clean_data(
+            self.df_daily_train,
+            rem_negs=True,
+            rem_ol=True)
+
+        print('Cleaning validation data')
+        # clean the validation data from negative values (but not outliers)
+        self.df_daily_val = self.raw_data.clean_data(
+            self.df_daily_val,
+            rem_negs=True,
+            rem_ol=False)
+        
     def create_ts_features(self, df_base, num_lag_mon):
         df_ts = self.monthly_data.add_lag_features(
             df_base,
@@ -166,44 +203,6 @@ class BasePredictor:
         X_train = scaler.transform(X_train)
         X_val = scaler.transform(X_val)
         return X_train, X_val
-
-    def split_train_test_data(self, df):
-
-        # find out the total number of monthly periods available
-        num_tot_mon = df.monthly_period.unique().shape[0]
-        # total monthly periods - lag months gives effective total months
-        num_efftot_mon = num_tot_mon - self.num_lag_mon
-        # number of months to use for validation
-        num_val_mon = round(num_efftot_mon * self.val_ratio)
-
-        # Determine the start date for validation
-        y_last = df['date'].max().year
-        m_last = df['date'].max().month
-        given_date = datetime(y_last, m_last+1, 1)
-        # train data extends until (excluding) this date:
-        date_val_start = given_date - relativedelta(months=num_val_mon)
-        # validation data starts self.num_lag_mon before, to account for lag
-        rel_delta_lag_months = relativedelta(months=self.num_lag_mon)
-        date_val_start_wlag = date_val_start - rel_delta_lag_months
-        # Do the split
-        self.df_daily_val = df.loc[df['date'] >= date_val_start_wlag, :].copy()
-        self.df_daily_train = df.loc[df['date'] < date_val_start, :].copy()
-    
-    def clean_daily_data(self):
-        
-        print('Cleaning training data')
-        # clean the training data from negative values and outliers
-        self.df_daily_train = self.raw_data.clean_data(
-            self.df_daily_train,
-            rem_negs=True,
-            rem_ol=True)
-
-        print('Cleaning validation data')
-        # clean the validation data from negative values (but not outliers)
-        self.df_daily_val = self.raw_data.clean_data(
-            self.df_daily_val,
-            rem_negs=True,
-            rem_ol=False)
 
 if __name__ == "__main__":
     from utils import Utils
