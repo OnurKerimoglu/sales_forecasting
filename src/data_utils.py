@@ -7,7 +7,7 @@ import parquet
 
 class RawData:
     """
-    A class used to load and clean data.
+    A class used to load and clean raw data.
     Attributes:
         config (dict): The configuration parameters.
         category_list (pandas.DataFrame): The loaded category list data.
@@ -254,6 +254,62 @@ class RawData:
         lower_limit = df[column].mean() - 3 * df[column].std()
         return lower_limit, upper_limit
 
+
+class MonthlyData:
+    """
+    This class provides methods for processing monthly sales data.
+    Attributes:
+        config (dict): A dictionary of configuration parameters.
+    Methods:
+        get_monthly_data(df_daily, splitname, refresh):
+            Retrieves or generates a monthly sales data file.
+        prep_monthly_data(df_daily, df_shops, df_items):
+            Prepares the monthly sales data by creating a full item-amounts table,
+            adding missing category IDs, and adding missing prices of non-transacted items.
+        create_items_df_monthly(df_daily, df_shops, df_items):
+            Creates a monthly items dataframe
+        convert_items_daily_to_monthly(df):
+            Converts daily items data to monthly data.
+        create_df_all(columns, shops, items, dates):
+            Generates all possible combinations of shops, items, and dates.
+        create_df_all_limited(df, coldict):
+            Creates a dataframe with all possible combinations of shop-item pairs and dates.
+        create_df_with_zero_sales(df, df_all, columns):
+            Creates a dataframe with zero sales for missing combinations of shop-item pairs and dates.
+        def create_categories_df_monthly(df_daily, df_shops, df_items):
+            Creates a monthly categories dataframe.
+        convert_categories_daily_to_monthly(df)
+            Converts daily categories data to monthly data.
+        add_category_to_df(df_items_monthly, df_items):
+            Adds missing category IDs to the items monthly dataframe.
+        add_avg_shopitem_price_to_df(df_items_monthly, df_daily, method):
+            Adds missing prices of non-transacted items to the items monthly dataframe.
+        get_mean_price(df_daily_train, method):
+            Returns the mean price of non-transacted items.
+        add_time_features(df_monthly):
+            Adds time features to the monthly sales dataframe.
+        get_ts_features(df_base, splitname, refresh, num_lag_mon):
+            Generates or fetches time series features
+        add_lag_features(df_monthly, lags_to_include, lag_features):
+            Loops features to add their lags.
+        add_ma_features(df_monthly, mas_to_include, ma_features):
+            Loops features to add their moving averages.
+        add_feature_lags(self, df, column, lagcount):
+            Adds lags of a given feature to the dataframe.
+        add_feature_moving_averages(self, df, column, windows)
+            Adds moving averages of a given feature to the dataframe.        
+    """
+    def __init__(self, config):
+        """
+        Initializes a new instance of the RawData class.
+        Args:
+            config (dict, optional): A dictionary of configuration parameters.
+        Initializes the following instance variables:
+            - config (dict)
+        If the env is set to 'local', known  data schema issues are fixed.
+        """
+        self.config = config
+    
     def get_monthly_data(
             self,
             df_daily,
@@ -469,7 +525,7 @@ class RawData:
         df_monthly['month'] = df_monthly['monthly_period'].dt.month
         return df_monthly
 
-    def get_ts_data(self, df_base, splitname, refresh, num_lag_mon):
+    def get_ts_features(self, df_base, splitname, refresh, num_lag_mon):
         fn_ts = os.path.join(
             self.config['root_data_path'],
             self.config[f'fn_{splitname}_ts'])
@@ -478,28 +534,40 @@ class RawData:
             df_ts = pd.read_parquet(fn_ts)
         else:
             print(f'Creating {fn_ts}')
-            df_ts = self.add_lag_ma_features(
+            df_ts = self.add_lag_features(
                 df_base,
-                lags_to_include = num_lag_mon)
+                lags_to_include=num_lag_mon,
+                lag_features=['price', 'amount_item', 'amount_cat'])
+            df_ts = self.add_ma_features(
+                df_ts,
+                mas_to_include=[num_lag_mon-1],
+                ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
+            )
             # remove the months for which lags could not be calculated
             periods_to_remove = df_ts.index.unique()[0:num_lag_mon]
             df_ts = df_ts.drop(periods_to_remove)
             df_ts.to_parquet(fn_ts)
         return df_ts
 
-    def add_lag_ma_features(
+    def add_lag_features(
             self,
             df_monthly,
             lags_to_include=3,
-            lag_features=['price', 'amount_item', 'amount_cat'],
-            mas_to_include=[2],
-            ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
+            lag_features=['price', 'amount_item', 'amount_cat']
             ):
         for feature in lag_features:
             df_monthly = self.add_feature_lags(
                 df_monthly,
                 feature,
                 lags_to_include)
+        return df_monthly
+    
+    def add_ma_features(
+            self,
+            df_monthly,
+            mas_to_include=[2],
+            ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
+            ):
         for feature in ma_features:
             df_monthly = self.add_feature_moving_averages(
                 df_monthly,
