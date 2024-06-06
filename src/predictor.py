@@ -1,31 +1,70 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 # local imports
-from data_utils import RawData
+from data_utils import RawData, MonthlyData
 
 
 class BasePredictor:
     def __init__(
             self,
             config,
+            refresh=False,
             num_lag_mon=3,
             val_ratio=0.2,
+            scaler_type = 'standard'
             ):
+        # set input args
         self.config = config
+        self.refresh = refresh
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
+        self.scaler_type = scaler_type
+
+        # define attributes to be set later
         self.raw_data = None
+        self.monthly_data = None
         self.df_daily_train = None
         self.df_daily_val = None
-
-        # prepare data
-        self.prep_rawdata()
-
-    
-    def prep_rawdata(self):
+        self.df_train = None
+        self.df_val = None
+        self.X_train = None
+        self.y_train = None
+        self.X_val = None
+        self.y_val = None
+        
+        # instantiate data classes
         self.raw_data = RawData(self.config)
+        self.monthly_data = MonthlyData(self.config)
+
+        # prepare monthly data
+        self.prep_data()
+
+
+    def prep_data(self):
+
+        # read and process rawdata (TODO: do this only if needed)
+        self.prep_raw_data()
+
+        # prepare monthly data with features
+        columns = ['monthly_period', 'shop_id', 'item_id', 'item_category_id', 'amount', 'price']
+        self.df_train = self.prep_monthly_data_for_split(
+            self.df_daily_train[columns].copy(),
+            'train',
+            refresh=self.refresh
+            )
+        self.df_val = self.prep_monthly_data_for_split(
+            self.df_daily_val[columns].copy(),
+            'val',
+            refresh=self.refresh
+            )
+        
+        # prepare X_train, y_train, X_val, y_val
+        self.prep_X_y()
+
+    def prep_raw_data(self):
 
         # load merged data:
         data_m = self.prep_merged_data()
@@ -37,12 +76,50 @@ class BasePredictor:
         self.clean_daily_data()
         print('Prepared daily raw data.')
 
-
     def prep_merged_data(self):
         data_merged = self.raw_data.merge_data()
         data_merged = self.raw_data.handle_dates(data_merged)
         # data_cleaned = data.clean_data(data_merged)
         return data_merged
+    
+    def prep_monthly_data_for_split(
+            self,
+            df_daily,
+            splitname,
+            refresh):
+    
+        # get base monthly data
+        df_base = self.monthly_data.get_monthly_data(df_daily, splitname, refresh)
+
+        # get monthly data with lag and ma features
+        df_ts= self.monthly_data.get_ts_features(df_base, splitname, refresh, self.num_lag_mon)
+        
+        return df_ts
+
+    def prep_X_y(self):
+        self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
+        self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
+        self.X_train, self.X_val = self.scale_X(self.X_train, self.X_val)
+    
+    def get_X_y_for_split(self, df):
+        y = df['amount_item']
+        df.drop(columns=['price', 'amount_item', 'amount_cat'], axis=1, inplace=True)
+        X = df
+        return X, y
+    
+    def scale_X(self, X_train, X_val):
+        if self.scaler_type is None:
+            return X_train, X_val
+        elif self.scaler_type == 'standard':
+            scaler = StandardScaler()
+        else:
+            raise Exception(f'Unknown scaler: {scaler}')
+        print(f'Scaling X train and X val with {scaler} scaler')
+        # do the scaling
+        scaler.fit(X_train)
+        X_train = scaler.transform(X_train)
+        X_val = scaler.transform(X_val)
+        return X_train, X_val
 
     def split_train_test_data(self, df):
 
@@ -81,18 +158,6 @@ class BasePredictor:
             self.df_daily_val,
             rem_negs=True,
             rem_ol=False)
-    
-    def prep_monthly_data(self, df_daily):
-        df_items_monthly_grouped = df_daily.groupby(
-            ['shop_id', 'item_id', 'monthly_period', 'category_id', 'price', 'amount']
-            )
-        df_items_monthly = df_items_monthly_grouped.agg(
-            {'price': 'sum',
-             'amount': 'sum',
-             'dayofweek': 'first',
-             'year': 'first'}
-        ).reset_index()
-        return df_items_monthly
 
 if __name__ == "__main__":
     from utils import Utils
