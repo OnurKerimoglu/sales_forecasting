@@ -11,14 +11,16 @@ class BasePredictor:
     def __init__(
             self,
             config,
-            refresh=False,
+            refresh_monthly=False,
+            refresh_ts_features=False,
             num_lag_mon=3,
             val_ratio=0.2,
             scaler_type = 'standard'
             ):
         # set input args
         self.config = config
-        self.refresh = refresh
+        self.refresh_monthly = refresh_monthly
+        self.refresh_ts_features = refresh_ts_features
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
         self.scaler_type = scaler_type
@@ -44,21 +46,15 @@ class BasePredictor:
 
 
     def prep_data(self):
-
-        # read and process rawdata (TODO: do this only if needed)
-        self.prep_raw_data()
-
         # prepare monthly data with features
         columns = ['monthly_period', 'shop_id', 'item_id', 'item_category_id', 'amount', 'price']
         self.df_train = self.prep_monthly_data_for_split(
-            self.df_daily_train[columns].copy(),
-            'train',
-            refresh=self.refresh
+            columns,
+            'train'
             )
         self.df_val = self.prep_monthly_data_for_split(
-            self.df_daily_val[columns].copy(),
-            'val',
-            refresh=self.refresh
+            columns,
+            'val'
             )
         
         # prepare X_train, y_train, X_val, y_val
@@ -84,18 +80,68 @@ class BasePredictor:
     
     def prep_monthly_data_for_split(
             self,
-            df_daily,
-            splitname,
-            refresh):
-    
-        # get base monthly data
-        df_base = self.monthly_data.get_monthly_data(df_daily, splitname, refresh)
+            columns,
+            splitname):
+        import os
 
-        # get monthly data with lag and ma features
-        df_ts= self.monthly_data.get_ts_features(df_base, splitname, refresh, self.num_lag_mon)
+        fn_base = os.path.join(
+            self.config['root_data_path'],
+            self.config[f'fn_{splitname}_base'])
+        if os.path.exists(fn_base) and not self.refresh_monthly:
+            print(f'Loading {fn_base}')
+            df_base = pd.read_parquet(fn_base)
+        else:
+            print(f'Creating {fn_base}')
+            df_base = self.create_monthly_data(columns, splitname)
+            df_base.to_parquet(fn_base)
+
+        fn_ts = os.path.join(
+            self.config['root_data_path'],
+            self.config[f'fn_{splitname}_ts'])
+        if os.path.exists(fn_ts) and not self.refresh_ts_features:
+            print(f'Loading {fn_ts}')
+            df_ts = pd.read_parquet(fn_ts)
+        else:
+            print(f'Creating {fn_ts}')
+            df_ts = self.create_ts_features(df_base, self.num_lag_mon)
+            df_ts.to_parquet(fn_ts)
         
         return df_ts
 
+    def create_monthly_data(self, columns, splitname):
+        # read and process rawdata 
+        self.prep_raw_data()
+
+        if splitname == 'train':
+            df_daily = self.df_daily_train[columns].copy()
+        elif splitname == 'val':
+            df_daily = self.df_daily_val[columns].copy()
+        else:
+            raise Exception(f'Unknown splitname: {splitname}')
+        
+        print (f'Creating monthly data for split {splitname}')
+        df_base = self.monthly_data.prep_monthly_data(
+            df_daily,
+            self.raw_data.shop_list,
+            self.raw_data.item_list[['item_id', 'item_category_id']].copy())
+
+        return df_base
+    
+    def create_ts_features(self, df_base, num_lag_mon):
+        df_ts = self.monthly_data.add_lag_features(
+            df_base,
+            lags_to_include=num_lag_mon,
+            lag_features=['price', 'amount_item', 'amount_cat'])
+        df_ts = self.monthly_data.add_ma_features(
+            df_ts,
+            mas_to_include=[num_lag_mon-1],
+            ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
+        )
+        # remove the months for which lags could not be calculated
+        periods_to_remove = df_ts.index.unique()[0:num_lag_mon]
+        df_ts = df_ts.drop(periods_to_remove)
+        return df_ts
+        
     def prep_X_y(self):
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)

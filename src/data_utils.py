@@ -261,8 +261,6 @@ class MonthlyData:
     Attributes:
         config (dict): A dictionary of configuration parameters.
     Methods:
-        get_monthly_data(df_daily, splitname, refresh):
-            Retrieves or generates a monthly sales data file.
         prep_monthly_data(df_daily, df_shops, df_items):
             Prepares the monthly sales data by creating a full item-amounts table,
             adding missing category IDs, and adding missing prices of non-transacted items.
@@ -276,7 +274,7 @@ class MonthlyData:
             Creates a dataframe with all possible combinations of shop-item pairs and dates.
         create_df_with_zero_sales(df, df_all, columns):
             Creates a dataframe with zero sales for missing combinations of shop-item pairs and dates.
-        def create_categories_df_monthly(df_daily, df_shops, df_items):
+        create_categories_df_monthly(df_daily, df_shops, df_items):
             Creates a monthly categories dataframe.
         convert_categories_daily_to_monthly(df)
             Converts daily categories data to monthly data.
@@ -288,8 +286,6 @@ class MonthlyData:
             Returns the mean price of non-transacted items.
         add_time_features(df_monthly):
             Adds time features to the monthly sales dataframe.
-        get_ts_features(df_base, splitname, refresh, num_lag_mon):
-            Generates or fetches time series features
         add_lag_features(df_monthly, lags_to_include, lag_features):
             Loops features to add their lags.
         add_ma_features(df_monthly, mas_to_include, ma_features):
@@ -310,27 +306,6 @@ class MonthlyData:
         """
         self.config = config
     
-    def get_monthly_data(
-            self,
-            df_daily,
-            splitname,
-            refresh
-            ):
-        fn_base = os.path.join(
-            self.config['root_data_path'],
-            self.config[f'fn_{splitname}_base'])
-        if os.path.exists(fn_base) and not refresh:
-            print(f'Loading {fn_base}')
-            df_base = pd.read_parquet(fn_base)
-        else:
-            print(f'Creating {fn_base}')
-            df_base = self.prep_monthly_data(
-                df_daily,
-                self.shop_list,
-                self.item_list[['item_id', 'item_category_id']].copy())
-            df_base.to_parquet(fn_base)
-        return df_base
-
     def prep_monthly_data(self, df_daily, df_shops, df_items):
         # Create a full Item-Amounts table
         df_items_monthly = self.create_items_df_monthly(df_daily, df_shops, df_items) 
@@ -524,30 +499,6 @@ class MonthlyData:
         df_monthly['year'] = df_monthly['monthly_period'].dt.year
         df_monthly['month'] = df_monthly['monthly_period'].dt.month
         return df_monthly
-
-    def get_ts_features(self, df_base, splitname, refresh, num_lag_mon):
-        fn_ts = os.path.join(
-            self.config['root_data_path'],
-            self.config[f'fn_{splitname}_ts'])
-        if os.path.exists(fn_ts) and not refresh:
-            print(f'Loading {fn_ts}')
-            df_ts = pd.read_parquet(fn_ts)
-        else:
-            print(f'Creating {fn_ts}')
-            df_ts = self.add_lag_features(
-                df_base,
-                lags_to_include=num_lag_mon,
-                lag_features=['price', 'amount_item', 'amount_cat'])
-            df_ts = self.add_ma_features(
-                df_ts,
-                mas_to_include=[num_lag_mon-1],
-                ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
-            )
-            # remove the months for which lags could not be calculated
-            periods_to_remove = df_ts.index.unique()[0:num_lag_mon]
-            df_ts = df_ts.drop(periods_to_remove)
-            df_ts.to_parquet(fn_ts)
-        return df_ts
 
     def add_lag_features(
             self,
