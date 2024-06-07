@@ -36,6 +36,7 @@ class BasePredictor:
         self.y_train = None
         self.X_val = None
         self.y_val = None
+        self.feature_names = None
         
         # instantiate data classes
         self.raw_data = RawData(self.config)
@@ -182,6 +183,7 @@ class BasePredictor:
     def prep_X_y(self):
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
+        self.feature_names = self.X_train.columns
         self.X_train, self.X_val = self.scale_X(self.X_train, self.X_val)
     
     def get_X_y_for_split(self, df):
@@ -202,6 +204,8 @@ class BasePredictor:
         scaler.fit(X_train)
         X_train = scaler.transform(X_train)
         X_val = scaler.transform(X_val)
+        # X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns)
+        # X_val = pd.DataFrame(scaler.transform(X_val), columns=X_val.columns)
         return X_train, X_val
 
 if __name__ == "__main__":
