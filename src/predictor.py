@@ -183,7 +183,7 @@ class BasePredictor:
     def prep_X_y(self):
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
-        self.feature_names = self.X_train.columns
+        self.feature_names = list(self.X_train.columns.values)
         self.X_train, self.X_val = self.scale_X(self.X_train, self.X_val)
     
     def get_X_y_for_split(self, df):
