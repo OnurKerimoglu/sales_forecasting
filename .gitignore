@@ -8,3 +8,7 @@ data/
 
 # cpython
 *.pyc
+
+# log, pkl etc files
+*.log
+*.pkl
