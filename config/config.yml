@@ -1,6 +1,7 @@
 local:
   env: 'local'
-  root_data_path: '/Users/Onur/opt/MLrepos/shop_sales_prediction/data'
+  # root_data_path: '/Users/Onur/opt/MLrepos/shop_sales_prediction/data'
+  root_data_path: '/home/onur/WORK/DS/repos/shop_sales_prediction/data'
   fn_categories: 'category_list.csv'
   fn_items: 'item_list.csv'
   fn_shops: 'shop_list.csv'
