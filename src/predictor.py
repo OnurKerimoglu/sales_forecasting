@@ -119,10 +119,6 @@ class BasePredictor:
                 columns,
                 'all'
             )
-            self.df_train, self.df_val = train_test_split(
-                self.df,
-                test_size=self.val_ratio,
-                random_state=42)
         else:
             self.df_train = self.prep_monthly_data_for_split(
                 columns,
@@ -132,8 +128,6 @@ class BasePredictor:
                 columns,
                 'val'
                 )
-        # prepare X_train, y_train, X_val, y_val
-        self.prep_X_y()
     
     def prep_monthly_data_for_split(
             self,
@@ -258,7 +252,7 @@ class BasePredictor:
                 self.df_daily,
                 rem_negs=True,
                 rem_ol=True)
-        if self.clean_strategy == 'no_olrem_for_val':
+        elif self.clean_strategy == 'no_olrem_for_val':
             print('Cleaning training data')
             # clean the training data from negative values and outliers
             self.df_daily_train = self.raw_data.clean_data(
@@ -271,6 +265,8 @@ class BasePredictor:
                 self.df_daily_val,
                 rem_negs=True,
                 rem_ol=False)
+        else:
+            raise ValueError(f'Unknown clean strategy:{self.clean_strategy}')
         
     def create_ts_features(self, df_base, num_lag_mon):
         df_ts = self.monthly_data.add_lag_features(
@@ -287,7 +283,16 @@ class BasePredictor:
         df_ts = df_ts.drop(periods_to_remove)
         return df_ts
         
-    def prep_X_y(self):
+    def split_scale_X_y(self):
+        if self.clean_strategy == 'olrem_for_all':
+            self.df_train, self.df_val = train_test_split(
+                self.df,
+                test_size=self.val_ratio,
+                random_state=42)
+        elif self.clean_strategy == 'no_olrem_for_val':
+            pass  # in this case train-test splitting had been already done
+        else:
+            raise ValueError(f'Unknown clean strategy:{self.clean_strategy}')
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
         self.feature_names = list(self.X_train.columns.values)
@@ -325,3 +330,6 @@ class BasePredictor:
 #         num_lag_mon=3,
 #         val_ratio=0.2,
 #         scaler_type='standard')
+#     # split the data and do the scaling
+#     # stores X_train, y_train, X_val, y_val and feature_names in predictor object
+#     predictor.split_scale_X_y()
