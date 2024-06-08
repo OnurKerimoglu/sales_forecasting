@@ -1,26 +1,91 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 # local imports
 from data_utils import RawData, MonthlyData
 
 
 class BasePredictor:
+    """
+    The BasePredictor class is the base class for all predictor models.
+
+    Attributes:
+        config (dict): The configuration parameters.
+        refresh_monthly (bool): Whether to refresh the monthly data.
+        refresh_ts_features (bool): Whether to refresh the time series features.
+        clean_strategy (str): The strategy for cleaning the data.
+        split_strategy (str): The strategy for splitting the data.
+        num_lag_mon (int): The number of lag months to include.
+        val_ratio (float): The ratio of validation data.
+        scaler_type (str): The type of scaler to use.
+        raw_data (RawData): An instance of the RawData class.
+        monthly_data (MonthlyData): An instance of the MonthlyData class.
+        df_daily_train (pandas.DataFrame): The daily training data.
+        df_daily_val (pandas.DataFrame): The daily validation data.
+        df_train (pandas.DataFrame): The training data.
+        df_val (pandas.DataFrame): The validation data.
+        X_train (numpy.ndarray): The training features.
+        y_train (numpy.ndarray): The training targets.
+        X_val (numpy.ndarray): The validation features.
+        y_val (numpy.ndarray): The validation targets.
+        feature_names (list): The names of the features.
+
+    Methods:
+        __init__(self, config, refresh_monthly=False, refresh_ts_features=False, split_strategy='random', clean_strategy='olrem_for_all', num_lag_mon=3, val_ratio=0.2, scaler_type='standard'): Initializes a new instance of the BasePredictor class with the given configuration.
+        prep_data(self): Prepares the monthly data with features.
+        prep_monthly_data_for_split(self, columns, splitname): Prepares the monthly data for a specific split.
+        create_monthly_data(self, columns, splitname): Creates the monthly data for a specific split.
+        prep_X_y(self): Prepares the X_train, y_train, X_val, y_val.
+        split_train_test_data(self, df): Splits the data into training and validation sets.
+        get_X_y_for_split(self, df): Gets the X and y for a specific split.
+        scale_X(self, X_train, X_val): Scales the features.
+    """
+    
     def __init__(
             self,
             config,
             refresh_monthly=False,
             refresh_ts_features=False,
+            clean_strategy='olrem_for_all',
+            split_strategy='random',
             num_lag_mon=3,
             val_ratio=0.2,
             scaler_type = 'standard'
             ):
+        """
+        Initializes a new instance of the BasePredictor class with the given configuration.
+
+        Args:
+            config (dict):
+                A dictionary containing the configuration parameters.
+            refresh_monthly (bool, optional):
+                Whether to refresh the monthly data. Defaults to False.
+            refresh_ts_features (bool, optional):
+                Whether to refresh the time series features. Defaults to False.
+            split_strategy (str, optional): 
+                The strategy for splitting the data. Defaults to 'random'.
+                Options: 'random', 'last_months_val'
+            clean_strategy (str, optional): 
+                The strategy for cleaning the data. Defaults to 'olrem_for_all'.
+                Options: 'olrem_for_all', 'no_olrem_for_val'
+            num_lag_mon (int, optional): 
+                The number of lag months to include. Defaults to 3.
+            val_ratio (float, optional): 
+                The ratio of validation data. Defaults to 0.2.
+            scaler_type (str, optional): 
+                The type of scaler to use. Defaults to 'standard'.
+        """
+                
         # set input args
         self.config = config
         self.refresh_monthly = refresh_monthly
         self.refresh_ts_features = refresh_ts_features
+        self.split_strategy = split_strategy
+        self.clean_strategy = clean_strategy
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
         self.scaler_type = scaler_type
@@ -49,14 +114,24 @@ class BasePredictor:
     def prep_data(self):
         # prepare monthly data with features
         columns = ['monthly_period', 'shop_id', 'item_id', 'item_category_id', 'amount', 'price']
-        self.df_train = self.prep_monthly_data_for_split(
-            columns,
-            'train'
+        if self.clean_strategy == 'olrem_for_all':
+            self.df = self.prep_monthly_data_for_split(
+                columns,
+                'all'
             )
-        self.df_val = self.prep_monthly_data_for_split(
-            columns,
-            'val'
-            )
+            self.df_train, self.df_val = train_test_split(
+                self.df,
+                test_size=self.val_ratio,
+                random_state=42)
+        else:
+            self.df_train = self.prep_monthly_data_for_split(
+                columns,
+                'train'
+                )
+            self.df_val = self.prep_monthly_data_for_split(
+                columns,
+                'val'
+                )
         # prepare X_train, y_train, X_val, y_val
         self.prep_X_y()
     
@@ -69,21 +144,22 @@ class BasePredictor:
         fn_base = os.path.join(
             self.config['root_data_path'],
             self.config[f'fn_{splitname}_base'])
-        if os.path.exists(fn_base) and not self.refresh_monthly:
-            print(f'Loading {fn_base}')
-            df_base = pd.read_parquet(fn_base)
-        else:
-            print(f'Creating {fn_base}')
-            df_base = self.create_monthly_data(columns, splitname)
-            df_base.to_parquet(fn_base)
-
         fn_ts = os.path.join(
             self.config['root_data_path'],
             self.config[f'fn_{splitname}_ts'])
+        
         if os.path.exists(fn_ts) and not self.refresh_ts_features:
             print(f'Loading {fn_ts}')
             df_ts = pd.read_parquet(fn_ts)
         else:
+            if os.path.exists(fn_base) and not self.refresh_monthly:
+                print(f'Loading {fn_base}')
+                df_base = pd.read_parquet(fn_base)
+            else:
+                print(f'Creating {fn_base}')
+                df_base = self.create_monthly_data(columns, splitname)
+                df_base.to_parquet(fn_base)
+
             print(f'Creating {fn_ts}')
             df_ts = self.create_ts_features(df_base, self.num_lag_mon)
             df_ts.to_parquet(fn_ts)
@@ -98,6 +174,8 @@ class BasePredictor:
             df_daily = self.df_daily_train[columns].copy()
         elif splitname == 'val':
             df_daily = self.df_daily_val[columns].copy()
+        elif splitname == 'all':
+            df_daily = self.df_daily[columns].copy()
         else:
             raise Exception(f'Unknown splitname: {splitname}')
         
@@ -128,6 +206,21 @@ class BasePredictor:
         return data_merged
     
     def split_train_test_data(self, df):
+        if self.clean_strategy == 'olrem_for_all':
+            self.df_daily = df
+        else:
+            if self.split_strategy == 'random':
+                self.split_train_test_data_random(self, df)
+            if self.split_strategy == 'last_months_val':
+                self.split_train_test_data_by_months(self, df)
+
+    def split_train_test_data_random(self, df):
+        self.df_daily_train, self.df_daily_val = train_test_split(
+            df,
+            test_size=self.val_ratio,
+            random_state=42)
+                
+    def split_train_test_data_by_months(self, df):
 
         # find out the total number of monthly periods available
         num_tot_mon = df.monthly_period.unique().shape[0]
@@ -136,6 +229,12 @@ class BasePredictor:
         # number of months to use for validation
         num_val_mon = round(num_efftot_mon * self.val_ratio)
 
+        if self.split_strategy == 'last_months_val':
+            self.split_train_test_data_last_months(self, df, num_val_mon)
+        else:
+            raise ValueError('Unknown split strategy')
+        
+    def split_train_test_data_last_months(self, df, num_val_mon):
         # Determine the start date for validation
         y_last = df['date'].max().year
         m_last = df['date'].max().month
@@ -148,22 +247,30 @@ class BasePredictor:
         # Do the split
         self.df_daily_val = df.loc[df['date'] >= date_val_start_wlag, :].copy()
         self.df_daily_train = df.loc[df['date'] < date_val_start, :].copy()
-    
+
     def clean_daily_data(self):
         
-        print('Cleaning training data')
+        print('Cleaning data')
         # clean the training data from negative values and outliers
-        self.df_daily_train = self.raw_data.clean_data(
-            self.df_daily_train,
-            rem_negs=True,
-            rem_ol=True)
-
-        print('Cleaning validation data')
-        # clean the validation data from negative values (but not outliers)
-        self.df_daily_val = self.raw_data.clean_data(
-            self.df_daily_val,
-            rem_negs=True,
-            rem_ol=False)
+        if self.clean_strategy == 'olrem_for_all':
+            print('Cleaning data')
+            self.df_daily = self.raw_data.clean_data(
+                self.df_daily,
+                rem_negs=True,
+                rem_ol=True)
+        if self.clean_strategy == 'no_olrem_for_val':
+            print('Cleaning training data')
+            # clean the training data from negative values and outliers
+            self.df_daily_train = self.raw_data.clean_data(
+                self.df_daily_train,
+                rem_negs=True,
+                rem_ol=True)
+            print('Cleaning validation data')
+            # clean the validation data from negative values (but not outliers)
+            self.df_daily_val = self.raw_data.clean_data(
+                self.df_daily_val,
+                rem_negs=True,
+                rem_ol=False)
         
     def create_ts_features(self, df_base, num_lag_mon):
         df_ts = self.monthly_data.add_lag_features(
@@ -208,7 +315,13 @@ class BasePredictor:
         # X_val = pd.DataFrame(scaler.transform(X_val), columns=X_val.columns)
         return X_train, X_val
 
-if __name__ == "__main__":
-    from utils import Utils
-    config = Utils.read_config_for_env(config_path='config/config.yml')
-    
+# if __name__ == "__main__":
+#     from utils import Utils
+#     config = Utils.read_config_for_env(config_path='config/config.yml')
+#     predictor = BasePredictor(
+#         config,
+#         refresh_monthly=False,
+#         refresh_ts_features=False,
+#         num_lag_mon=3,
+#         val_ratio=0.2,
+#         scaler_type='standard')
