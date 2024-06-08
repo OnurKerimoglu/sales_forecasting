@@ -12,3 +12,4 @@ data/
 # log, pkl etc files
 *.log
 *.pkl
+*.keras
