@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 # local imports
-from data_utils import RawData, MonthlyData
+from data_tools import RawData, MonthlyData
 
 
 class PredictorData:
