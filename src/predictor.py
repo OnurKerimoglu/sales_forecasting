@@ -2,6 +2,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import numpy as np
 import pandas as pd
+import random
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
@@ -33,16 +34,6 @@ class BasePredictor:
         X_val (numpy.ndarray): The validation features.
         y_val (numpy.ndarray): The validation targets.
         feature_names (list): The names of the features.
-
-    Methods:
-        __init__(self, config, refresh_monthly=False, refresh_ts_features=False, split_strategy='random', clean_strategy='olrem_for_all', num_lag_mon=3, val_ratio=0.2, scaler_type='standard'): Initializes a new instance of the BasePredictor class with the given configuration.
-        prep_data(self): Prepares the monthly data with features.
-        prep_monthly_data_for_split(self, columns, splitname): Prepares the monthly data for a specific split.
-        create_monthly_data(self, columns, splitname): Creates the monthly data for a specific split.
-        prep_X_y(self): Prepares the X_train, y_train, X_val, y_val.
-        split_train_test_data(self, df): Splits the data into training and validation sets.
-        get_X_y_for_split(self, df): Gets the X and y for a specific split.
-        scale_X(self, X_train, X_val): Scales the features.
     """
     
     def __init__(
@@ -68,7 +59,7 @@ class BasePredictor:
                 Whether to refresh the time series features. Defaults to False.
             split_strategy (str, optional): 
                 The strategy for splitting the data. Defaults to 'random'.
-                Options: 'random', 'last_months_val'
+                Options: 'random', 'months', 'last_months_val'
             clean_strategy (str, optional): 
                 The strategy for cleaning the data. Defaults to 'olrem_for_all'.
                 Options: 'olrem_for_all', 'no_olrem_for_val'
@@ -187,7 +178,7 @@ class BasePredictor:
         data_m = self.prep_merged_data()
 
         # split train and test data
-        self.split_train_test_data(data_m)
+        self.split_train_test_dailydata(data_m)
         
         # clean the data
         self.clean_daily_data()
@@ -199,36 +190,54 @@ class BasePredictor:
         # data_cleaned = data.clean_data(data_merged)
         return data_merged
     
-    def split_train_test_data(self, df):
+    def find_num_val_mon(self, df):
+        # find out the total number of monthly periods available
+        if 'monthly_period' in df.columns:
+            num_tot_mon = df.monthly_period.unique().shape[0]
+        else:
+            num_tot_mon = df.index.unique().shape[0]
+        # total monthly periods - lag months gives effective total months
+        num_efftot_mon = num_tot_mon - self.num_lag_mon
+        # number of months to use for validation
+        num_val_mon = round(num_efftot_mon * self.val_ratio)
+        return num_val_mon
+    
+    def split_train_test_dailydata(self, df):
         if self.clean_strategy == 'olrem_for_all':
             self.df_daily = df
         else:
             if self.split_strategy == 'random':
-                self.split_train_test_data_random(self, df)
-            if self.split_strategy == 'last_months_val':
-                self.split_train_test_data_by_months(self, df)
-
-    def split_train_test_data_random(self, df):
+                self.split_train_test_dailydata_random(self, df)
+            elif self.split_strategy == ['months', 'last_months_val']:
+                self.split_train_test_dailydata_by_months(self, df)
+            else:
+                raise ValueError('Unknown split strategy')
+        
+    def split_train_test_dailydata_random(self, df):
         self.df_daily_train, self.df_daily_val = train_test_split(
             df,
             test_size=self.val_ratio,
             random_state=42)
                 
-    def split_train_test_data_by_months(self, df):
-
-        # find out the total number of monthly periods available
-        num_tot_mon = df.monthly_period.unique().shape[0]
-        # total monthly periods - lag months gives effective total months
-        num_efftot_mon = num_tot_mon - self.num_lag_mon
-        # number of months to use for validation
-        num_val_mon = round(num_efftot_mon * self.val_ratio)
-
+    def split_train_test_dailydata_by_months(self, df):
+        num_val_mon = self.find_num_val_mon(df)
         if self.split_strategy == 'last_months_val':
-            self.split_train_test_data_last_months(self, df, num_val_mon)
-        else:
-            raise ValueError('Unknown split strategy')
-        
-    def split_train_test_data_last_months(self, df, num_val_mon):
+            self.split_train_test_dailydata_last_months_val(
+                df, 
+                num_val_mon)
+        elif self.split_strategy == 'months':
+            self.split_train_test_dailydata_months(
+                df, 
+                num_val_mon)
+    
+    def split_train_test_dailydata_months(self, df, num_val_mon):
+        periods = df['monthly_period'].unique()
+        val_periods = random.choices(periods, k=num_val_mon)
+        # do the split
+        self.df_val = df.loc[df['monthly_period'].isin(val_periods)].copy()
+        self.df_train = df.loc[~df['monthly_period'].isin(val_periods)].copy()
+
+    def split_train_test_dailydata_last_months_val(self, df, num_val_mon):
         # Determine the start date for validation
         y_last = df['date'].max().year
         m_last = df['date'].max().month
@@ -285,10 +294,7 @@ class BasePredictor:
         
     def split_scale_X_y(self):
         if self.clean_strategy == 'olrem_for_all':
-            self.df_train, self.df_val = train_test_split(
-                self.df,
-                test_size=self.val_ratio,
-                random_state=42)
+            self.split_train_test_data(self.df)
         elif self.clean_strategy == 'no_olrem_for_val':
             pass  # in this case train-test splitting had been already done
         else:
@@ -298,11 +304,56 @@ class BasePredictor:
         self.feature_names = list(self.X_train.columns.values)
         self.X_train, self.X_val = self.scale_X(self.X_train, self.X_val)
     
+    def split_train_test_data(self, df):
+        if self.split_strategy == 'random':
+            self.split_train_test_data_random(df)
+        elif self.split_strategy in ['months', 'last_months_val']:
+            self.split_train_test_data_by_months(df)
+        else:
+            raise ValueError('Unknown split strategy')
+
+    def split_train_test_data_random(self, df):
+        self.df_train, self.df_val = train_test_split(
+            df,
+            test_size=self.val_ratio,
+            random_state=42)
+        
+    def split_train_test_data_by_months(self, df):
+        num_val_mon = self.find_num_val_mon(df)
+        if self.split_strategy == 'months':
+            self.split_train_test_data_months(
+                df,
+                num_val_mon)
+        elif self.split_strategy == 'last_months_val':
+            self.split_train_test_data_last_months_val(
+                df, 
+                num_val_mon)
+    
+    def split_train_test_data_months(self, df, num_val_mon):
+        periods = df.index.unique()
+        val_periods = random.choices(periods, k=num_val_mon)
+        train_periods = list(set(periods)-set(val_periods))
+        # do the split
+        self.df_val = df.loc[val_periods].copy()
+        self.df_train = df.loc[train_periods].copy()
+    
+    def split_train_test_data_last_months_val(self, df, num_val_mon):
+        y_last = self.df.index.max().year
+        m_last = self.df.index.max().month
+        given_date = datetime(y_last, m_last+1, 1)
+        # train data extends until (excluding) this date:
+        date_val_start = given_date - relativedelta(months=num_val_mon)
+        mperiod_val_start = pd.Series(date_val_start).dt.to_period('M').values[0]
+        # do the split
+        self.df_val = df.loc[df.index >= mperiod_val_start, :].copy()
+        self.df_train = df.loc[df.index < mperiod_val_start, :].copy()
+        
     def get_X_y_for_split(self, df):
         y = df['amount_item']
         df.drop(columns=['price', 'amount_item', 'amount_cat'], axis=1, inplace=True)
         X = df
         return X, y
+    
     
     def scale_X(self, X_train, X_val):
         if self.scaler_type is None:
