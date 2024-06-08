@@ -69,7 +69,6 @@ rpds-py==0.18.1
 scikit-learn==1.5.0
 scipy==1.13.1
 shap==0.45.1
--e git+https://github.com/OnurKerimoglu/shop_sales_prediction.git@0327573a1ccf1d7579a288a9e190e267ae770d28#egg=shop_sales_prediction
 six==1.16.0
 slicer==0.0.8
 stack-data==0.6.3
