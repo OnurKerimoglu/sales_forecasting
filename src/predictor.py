@@ -10,9 +10,9 @@ from sklearn.model_selection import train_test_split
 from data_utils import RawData, MonthlyData
 
 
-class BasePredictor:
+class PredictorData:
     """
-    The BasePredictor class is the base class for all predictor models.
+    The PredictorData class provides methods to prepare the final model data
 
     Attributes:
         config (dict): The configuration parameters.
@@ -374,7 +374,7 @@ class BasePredictor:
 # if __name__ == "__main__":
 #     from utils import Utils
 #     config = Utils.read_config_for_env(config_path='config/config.yml')
-#     predictor = BasePredictor(
+#     predictor = PredictorData(
 #         config,
 #         refresh_monthly=False,
 #         refresh_ts_features=False,
