@@ -3,9 +3,7 @@ from dateutil.relativedelta import relativedelta
 import numpy as np
 import pandas as pd
 import random
-from sklearn.preprocessing import TargetEncoder, MinMaxScaler, StandardScaler
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.metrics import mean_squared_error as mse 
 from sklearn.model_selection import train_test_split
@@ -157,9 +155,6 @@ class PredictorData:
 
         # prepare monthly data
         self.prep_data()
-
-        # build preprocessing pipeline
-        self.build_preprocessing_pipeline()
 
 
     def prep_data(self):
@@ -432,18 +427,7 @@ class PredictorData:
         X = df
         return X, y
 
-    def build_preprocessing_pipeline(self):
-        self.get_numeric_features() # sets self.num_features
-        self.preprocessor = ColumnTransformer(
-            transformers=[
-                ('cat', TargetEncoder(target_type="continuous"), self.cat_features),
-                ("month_sin", self.sin_transformer(12), self.seasonal_features),
-                ("month_cos", self.cos_transformer(12), self.seasonal_features),
-                ('num', MinMaxScaler(), self.num_features)
-            ])
-    
 
-from sklearn.base import BaseEstimator, TransformerMixin
 class TrigTransformer(BaseEstimator, TransformerMixin):
     def __init__(self,
                  period,
