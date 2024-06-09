@@ -13,6 +13,57 @@ from sklearn.model_selection import train_test_split
 # local imports
 from data_tools import RawData, MonthlyData
 
+class BasePredictor:
+    """
+    The BasePredictor class provides base attributes and methods needed by predictor classes
+    """
+    def __init__(
+            self,
+            pred_data):
+        """
+        Initializes the TF_NN_Predictor object with the specified parameters.
+        Args:
+            pred_data (PredictorData object)
+        Returns:
+            None
+        """
+        # input arguments
+        self.pred_data = pred_data
+
+    def split_transform(self, pred_data, transformer):
+        """
+        Splits the data into training and validation sets,
+        and transforms the training and validation using the defined transformer.
+        Parameters:
+            pred_data (PredictorData object)
+            transformer (sklearn.compose.ColumnTransformer object)
+        Returns:
+            pred_data (PredictorData object): now containing:
+                (transformed) X_train and X_val data
+                y_train, y_val data
+        """
+        # split the data and do the scaling:
+        # stores X_train, y_train, X_val, y_val in pred_data object
+        print('Splitting train-val')
+        pred_data.split_X_y()
+        # transform the train data
+        print('Fit-transforming X_train')
+        pred_data.X_train = transformer.fit_transform(
+            pred_data.X_train,
+            pred_data.y_train)
+        # Transform the val data
+        print('Transforming X_val')
+        pred_data.X_val = transformer.transform(
+            pred_data.X_val)
+        pred_data.transformed_feature_names = self.get_clean_feature_names_out(transformer)
+        return pred_data
+    
+    @staticmethod
+    def get_clean_feature_names_out(transformer):
+        feats_raw = transformer.get_feature_names_out()
+        feats_clean = [feat_raw.replace('remainder__', '') for feat_raw in feats_raw]
+        return feats_clean
+        
 
 class PredictorData:
     """
@@ -98,6 +149,7 @@ class PredictorData:
         self.X_val = None
         self.y_val = None
         self.feature_names = None
+        self.transformed_feature_names = None
         
         # instantiate data classes
         self.raw_data = RawData(self.config)
@@ -399,19 +451,21 @@ class PredictorData:
         return FunctionTransformer(lambda x: np.cos(x / period * 2 * np.pi))
 
 
-if __name__ == "__main__":
-    from utils import Utils
-    config = Utils.read_config_for_env(config_path='config/config.yml')
-    pred_data = PredictorData(
-        config,
-        refresh_monthly=False,
-        refresh_ts_features=False,
-        num_lag_mon=3,
-        val_ratio=0.2)
-    # split the data and do the scaling
-    # stores X_train, y_train, X_val, y_val in predictor object
-    pred_data.split_X_y()
-    # encode and scale features 
-    pred_data.X_train = pred_data.preprocessor.fit_transform(
-        pred_data.X_train,
-        pred_data.y_train)
+# if __name__ == "__main__":
+#     from utils import Utils
+#     config = Utils.read_config_for_env(config_path='config/config.yml')
+#     pred_data = PredictorData(
+#         config,
+#         refresh_monthly=False,
+#         refresh_ts_features=False,
+#         clean_strategy='olrem_for_all',
+#         split_strategy='random',
+#         num_lag_mon=3,
+#         val_ratio=0.2)
+#     # split the data and do the scaling
+#     # stores X_train, y_train, X_val, y_val in predictor object
+#     pred_data.split_X_y()
+#     # encode and scale features 
+#     pred_data.X_train = pred_data.preprocessor.fit_transform(
+#         pred_data.X_train,
+#         pred_data.y_train)
