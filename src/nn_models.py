@@ -1,15 +1,13 @@
-from sklearn.preprocessing import TargetEncoder, MinMaxScaler, StandardScaler
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
+from sklearn.preprocessing import TargetEncoder, MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Input
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
 
-from model_tools import PredictorData
+from model_tools import PredictorData, BasePredictor, TrigTransformer
 
-class TF_NN_Predictor:
+class TF_NN_Predictor(BasePredictor):
     """
     A class for creating and training TensorFlow neural network predictors.
     This class provides a convenient interface for creating, compiling, and training
@@ -18,13 +16,12 @@ class TF_NN_Predictor:
     to use other architectures.
     Attributes:
         pred_data (PredictorData object): An instance of the PredictorData class.
-        input_dim (int): The number of input features.
         output_dim (int, optional): The number of output features. Default is 1.
         model_name (str, optional): The name of the pre-defined architecture to use. Default is '3Dense'.
         optimizer (str, optional): The optimizer to use for training. Default is 'adam'.
         metrics (list of str, optional):The metrics to use for evaluating the model. Default is ['mse'].
     Methods:
-        __init__(self, input_dim, output_dim=1, model_name='3Dense', optimizer="adam", metrics=['mse']):
+        __init__(self, pred_data, output_dim=1, model_name='3Dense', optimizer="adam", metrics=['mse']):
             Initializes the TF_NN_Predictor object with the specified parameters.
         get_callbacks(self):
             Returns a list of callbacks for use with the model's `fit` method.
@@ -44,6 +41,7 @@ class TF_NN_Predictor:
             model_name='3Dense',
             optimizer="adam",
             metrics=['mse']):
+        BasePredictor.__init__(self, pred_data)
         """
         Initializes the TF_NN_Predictor object with the specified parameters.
         Args:
@@ -64,6 +62,8 @@ class TF_NN_Predictor:
 
         # declarations
         self.input_dim = None
+        self.model = None
+        self.callbacks = None
 
         # create preprocessing pipeline
         self.build_transformer_pipeline()
@@ -124,10 +124,10 @@ class TF_NN_Predictor:
         # Input layer
         NN_model.add(Input((self.input_dim,)))
         # Hidden Layers
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(64, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(64, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(24, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(48, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(48, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(24, kernel_initializer='normal',activation='relu'))
         # Dropout Layer
         NN_model.add(Dropout(0.2))
         # Output Layer
@@ -184,31 +184,42 @@ class TF_NN_Predictor:
         """
         self.transformer = ColumnTransformer(
             transformers=[
-                ('cat', TargetEncoder(target_type="continuous"), self.pred_data.cat_features),
-                ("month_sin", PredictorData.sin_transformer(12), self.pred_data.seasonal_features),
-                ("month_cos", PredictorData.cos_transformer(12), self.pred_data.seasonal_features),
-                ('num', MinMaxScaler(), self.pred_data.num_features)
-            ])
-    
-    def split_transform(self):
-        """
-        Splits the data into training and validation sets,
-        and transforms the training and validation using the defined transformer.
-        Parameters:
-            None
-        Returns:
-            None
-        """
-        # split the data and do the scaling:
-        # stores X_train, y_train, X_val, y_val self.pred_data object
-        print('Splitting train-val')
-        self.pred_data.split_X_y()
-        # transform the train data
-        print('Fit-transforming X_train')
-        self.pred_data.X_train = self.transformer.fit_transform(
-            self.pred_data.X_train,
-            self.pred_data.y_train)
-        # Transform the val data
-        print('Transforming X_val')
-        self.pred_data.X_val = self.transformer.transform(
-            self.pred_data.X_val)
+                ('TargetEncoded', TargetEncoder(target_type="continuous"), self.pred_data.cat_features),
+                ("sin", TrigTransformer(12, 'sin'), self.pred_data.seasonal_features),
+                ("cos", TrigTransformer(12, 'cos'), self.pred_data.seasonal_features),
+                ('MinMaxScaled', MinMaxScaler(), self.pred_data.num_features)
+            ],
+            remainder='passthrough'
+            )
+
+
+# if __name__ == "__main__":
+#     from utils import Utils
+#     config = Utils.read_config_for_env(config_path='config/config.yml')
+#     pred_data = PredictorData(
+#         config,
+#         refresh_monthly=False,
+#         refresh_ts_features=False,
+#         clean_strategy='olrem_for_all',
+#         split_strategy='random',
+#         num_lag_mon=3,
+#         val_ratio=0.2)
+#     tf_nn_predictor_4D = TF_NN_Predictor(
+#         pred_data=pred_data,
+#         output_dim=1,
+#         model_name='4Dense',
+#         optimizer="adam",
+#         metrics=['mse'])
+#     tf_nn_predictor_4D.pred_data = tf_nn_predictor_4D.split_transform(
+#         tf_nn_predictor_4D.pred_data,
+#         tf_nn_predictor_4D.transformer)
+#     print(tf_nn_predictor_4D.pred_data.X_train[:2,:])
+#     print(tf_nn_predictor_4D.pred_data.transformed_feature_names)
+#     tf_nn_predictor_4D.create_model()
+#     tf_nn_predictor_4D.model.fit(
+#         tf_nn_predictor_4D.pred_data.X_train,
+#         tf_nn_predictor_4D.pred_data.y_train,
+#         epochs=10,
+#         batch_size=4096,
+#         validation_data=(tf_nn_predictor_4D.pred_data.X_val, tf_nn_predictor_4D.pred_data.y_val),
+#         callbacks=tf_nn_predictor_4D.callbacks)
