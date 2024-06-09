@@ -59,21 +59,21 @@ class LGBM_Predictor(BasePredictor):
     
         
 
-if __name__ == "__main__":
-    from utils import Utils
-    config = Utils.read_config_for_env(config_path='config/config.yml')
-    pred_data = PredictorData(
-        config,
-        refresh_monthly=False,
-        refresh_ts_features=False,
-        clean_strategy='olrem_for_all',
-        split_strategy='random',
-        num_lag_mon=3,
-        val_ratio=0.2)
-    lgbm_predictor = LGBM_Predictor(
-        pred_data=pred_data)
-    lgbm_predictor.pred_data = lgbm_predictor.split_transform(
-        lgbm_predictor.pred_data,
-        lgbm_predictor.transformer)
-    print(lgbm_predictor.pred_data.X_train[:2,:])
-    print(lgbm_predictor.pred_data.transformed_feature_names)
+# if __name__ == "__main__":
+#     from utils import Utils
+#     config = Utils.read_config_for_env(config_path='config/config.yml')
+#     pred_data = PredictorData(
+#         config,
+#         refresh_monthly=False,
+#         refresh_ts_features=False,
+#         clean_strategy='olrem_for_all',
+#         split_strategy='random',
+#         num_lag_mon=3,
+#         val_ratio=0.2)
+#     lgbm_predictor = LGBM_Predictor(
+#         pred_data=pred_data)
+#     lgbm_predictor.pred_data = lgbm_predictor.split_transform(
+#         lgbm_predictor.pred_data,
+#         lgbm_predictor.transformer)
+#     print(lgbm_predictor.pred_data.X_train[:2,:])
+#     print(lgbm_predictor.pred_data.transformed_feature_names)
