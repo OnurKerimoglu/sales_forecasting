@@ -9,160 +9,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.metrics import mean_squared_error as mse 
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Input
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
-import tensorflow as tf
 
 # local imports
 from data_tools import RawData, MonthlyData
-
-
-class TF_NN_Predictor:
-    """
-    A class for creating and training TensorFlow neural network predictors.
-    This class provides a convenient interface for creating, compiling, and training
-    TensorFlow neural network models for time series prediction. It supports two
-    predefined architectures ('3Dense' and '3Dense_v2'), but can also be customized
-    to use other architectures.
-    Attributes:
-        input_dim (int): The number of input features.
-        output_dim (int, optional): The number of output features. Default is 1.
-        model_name (str, optional): The name of the pre-defined architecture to use. Default is '3Dense'.
-        optimizer (str, optional): The optimizer to use for training. Default is 'adam'.
-        metrics (list of str, optional):The metrics to use for evaluating the model. Default is ['mse'].
-    Methods:
-        __init__(self, input_dim, output_dim=1, model_name='3Dense', optimizer="adam", metrics=['mse']):
-            Initializes the TF_NN_Predictor object with the specified parameters.
-        get_callbacks(self):
-            Returns a list of callbacks for use with the model's `fit` method.
-        get_model(self):
-            Returns the chosen TensorFlow model object.
-        nn_model_3Dense(self):
-            Returns a TensorFlow model object for the '3Dense' architecture.
-        nn_model_3Dense_v2(self):
-            Returns a TensorFlow model object for the '3Dense_v2' architecture.
-        compile_summarize_model(self):
-            Compiles the model and prints a summary of its architecture.
-    """
-    def __init__(
-            self,
-            input_dim, # = X.shape[1]
-            output_dim=1,
-            model_name='3Dense',
-            optimizer="adam",
-            metrics=['mse']):
-        """
-        Initializes the TF_NN_Predictor object with the specified parameters.
-        Args:
-            input_dim (int)
-            output_dim (int, optional): Default is 1.
-            model_name (str, optional): Default is '3Dense'.
-            optimizer (str, optional): Default is 'adam'.
-            metrics (list of str, optional): Default is ['mse'].
-        Returns:
-            None
-        """
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.model_name = model_name
-        self.optimizer = optimizer
-        self.metrics = metrics
-        
-        self.get_model()
-        self.compile_summarize_model()
-        self.get_callbacks()
-
-    def get_model(self):
-        """
-        Initializes the model based on the specified model name.
-        Args:
-            self (object): The instance of the class.
-        Returns:
-            None
-        """
-        if self.model_name == '3Dense':
-            self.model = self.nn_model_3Dense()
-        elif self.model_name == '4Dense':
-            self.model = self.nn_model_4Dense()
-        else:
-            raise ValueError('Unknown model_name')
-
-    def nn_model_3Dense(self):
-        """
-        Creates a neural network model with three dense layers and a dropout layer.
-        Returns:
-            NN_model (keras.models.Sequential): The created neural network model.
-        """
-        NN_model = Sequential()
-        # Input layer
-        NN_model.add(Input((self.input_dim,)))
-        # Hidden Layers
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        # Dropout Layer
-        NN_model.add(Dropout(0.2))
-        # Output Layer
-        NN_model.add(Dense(self.output_dim, kernel_initializer='normal',activation='linear'))
-        return NN_model
-    
-    def nn_model_4Dense(self):
-        """
-        Creates a neural network model with four dense layers and a dropout layer.
-        Returns:
-            NN_model (keras.models.Sequential): The created neural network model.
-        """
-        NN_model = Sequential()
-        # Input layer
-        NN_model.add(Input((self.input_dim,)))
-        # Hidden Layers
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(64, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(64, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        # Dropout Layer
-        NN_model.add(Dropout(0.2))
-        # Output Layer
-        NN_model.add(Dense(self.output_dim, kernel_initializer='normal',activation='linear'))
-        return NN_model
-    
-    def compile_summarize_model(self):
-        """
-        Compiles the neural network model with the specified 
-        loss function, optimizer, and metrics.
-        and prints a summary of its architecture.
-        Parameters:
-            None
-        Returns:
-            None
-        """
-        #Compile the network
-        self.model.compile(
-            loss=tf.keras.losses.mse,
-            optimizer=self.optimizer,
-            metrics=self.metrics)
-        self.model.summary()
-
-    def get_callbacks(self):
-        """
-        Initializes and returns a list of callbacks
-        to be used during the training of a model.
-        Returns:
-            list: A list of callbacks
-        """
-        #Define a checkpoint callback :
-        checkpoint = ModelCheckpoint(
-            '%s_weights-{epoch:03d}--{val_loss:.5f}.keras'%self.model_name,
-            monitor='val_loss',
-            verbose = 1,
-            save_best_only = True,
-            mode ='auto')
-        earlystop = EarlyStopping(
-            monitor='val_loss',
-            patience=3,
-            restore_best_weights= True)
-        self.callbacks = [checkpoint, earlystop]
 
 
 class PredictorData:
@@ -288,7 +137,13 @@ class PredictorData:
     def set_feature_names(self, df):
         # feature names
         self.feature_names = list(set(df.columns.values) - set(self.cols_to_drop))
+        self.num_features = self.get_numeric_features()
     
+    def get_numeric_features(self):
+        num_feats = list(
+            set(self.feature_names) - set(self.cat_features) - set(self.seasonal_features))
+        return num_feats
+        
     def fix_data_types(self, df):
         df = df.astype({c: np.int32 for c in ['item_category_id']})
         return df
@@ -524,10 +379,6 @@ class PredictorData:
         df.drop(columns=self.cols_to_drop, axis=1, inplace=True)
         X = df
         return X, y
-    
-    def get_numeric_features(self):
-        self.num_features = list(
-            set(self.feature_names) - set(self.cat_features) - set(self.seasonal_features))
 
     def build_preprocessing_pipeline(self):
         self.get_numeric_features() # sets self.num_features
