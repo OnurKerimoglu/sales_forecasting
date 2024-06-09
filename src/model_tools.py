@@ -3,7 +3,10 @@ from dateutil.relativedelta import relativedelta
 import numpy as np
 import pandas as pd
 import random
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import TargetEncoder, MinMaxScaler, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
 from sklearn.metrics import mean_squared_error as mse 
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
@@ -196,8 +199,7 @@ class PredictorData:
             clean_strategy='olrem_for_all',
             split_strategy='random',
             num_lag_mon=3,
-            val_ratio=0.2,
-            scaler_type = 'standard'
+            val_ratio=0.2
             ):
         """
         Initializes a new instance of the BasePredictor class with the given configuration.
@@ -219,8 +221,6 @@ class PredictorData:
                 The number of lag months to include. Defaults to 3.
             val_ratio (float, optional): 
                 The ratio of validation data. Defaults to 0.2.
-            scaler_type (str, optional): 
-                The type of scaler to use. Defaults to 'standard'.
         """
                 
         # set input args
@@ -231,7 +231,11 @@ class PredictorData:
         self.clean_strategy = clean_strategy
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
-        self.scaler_type = scaler_type
+        
+        # predefined constants
+        self.cols_to_drop = ['price', 'amount_item', 'amount_cat']
+        self.cat_features = ['shop_id', 'item_id', 'item_category_id'] 
+        self.seasonal_features = ['month']
 
         # define attributes to be set later
         self.raw_data = None
@@ -253,6 +257,9 @@ class PredictorData:
         # prepare monthly data
         self.prep_data()
 
+        # build preprocessing pipeline
+        self.build_preprocessing_pipeline()
+
 
     def prep_data(self):
         # prepare monthly data with features
@@ -262,15 +269,29 @@ class PredictorData:
                 columns,
                 'all'
             )
+            self.df = self.fix_data_types(self.df)
+            self.set_feature_names(self.df)
         else:
             self.df_train = self.prep_monthly_data_for_split(
                 columns,
                 'train'
                 )
+            self.df_train = self.fix_data_types(self.df_train)
+
             self.df_val = self.prep_monthly_data_for_split(
                 columns,
                 'val'
                 )
+            self.df_val = self.fix_data_types(self.df_val)
+            self.set_feature_names(self.df_train)
+            
+    def set_feature_names(self, df):
+        # feature names
+        self.feature_names = list(set(df.columns.values) - set(self.cols_to_drop))
+    
+    def fix_data_types(self, df):
+        df = df.astype({c: np.int32 for c in ['item_category_id']})
+        return df
     
     def prep_monthly_data_for_split(
             self,
@@ -443,8 +464,8 @@ class PredictorData:
         periods_to_remove = df_ts.index.unique()[0:num_lag_mon]
         df_ts = df_ts.drop(periods_to_remove)
         return df_ts
-        
-    def split_scale_X_y(self):
+
+    def split_X_y(self):
         if self.clean_strategy == 'olrem_for_all':
             self.split_train_test_data(self.df)
         elif self.clean_strategy == 'no_olrem_for_val':
@@ -453,8 +474,6 @@ class PredictorData:
             raise ValueError(f'Unknown clean strategy:{self.clean_strategy}')
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
-        self.feature_names = list(self.X_train.columns.values)
-        self.X_train, self.X_val = self.scale_X(self.X_train, self.X_val)
     
     def split_train_test_data(self, df):
         if self.split_strategy == 'random':
@@ -502,37 +521,46 @@ class PredictorData:
         
     def get_X_y_for_split(self, df):
         y = df['amount_item']
-        df.drop(columns=['price', 'amount_item', 'amount_cat'], axis=1, inplace=True)
+        df.drop(columns=self.cols_to_drop, axis=1, inplace=True)
         X = df
         return X, y
     
-    
-    def scale_X(self, X_train, X_val):
-        if self.scaler_type is None:
-            return X_train, X_val
-        elif self.scaler_type == 'standard':
-            scaler = StandardScaler()
-        else:
-            raise Exception(f'Unknown scaler: {scaler}')
-        print(f'Scaling X train and X val with {scaler} scaler')
-        # do the scaling
-        scaler.fit(X_train)
-        X_train = scaler.transform(X_train)
-        X_val = scaler.transform(X_val)
-        # X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns)
-        # X_val = pd.DataFrame(scaler.transform(X_val), columns=X_val.columns)
-        return X_train, X_val
+    def get_numeric_features(self):
+        self.num_features = list(
+            set(self.feature_names) - set(self.cat_features) - set(self.seasonal_features))
 
-# if __name__ == "__main__":
-#     from utils import Utils
-#     config = Utils.read_config_for_env(config_path='config/config.yml')
-#     predictor = PredictorData(
-#         config,
-#         refresh_monthly=False,
-#         refresh_ts_features=False,
-#         num_lag_mon=3,
-#         val_ratio=0.2,
-#         scaler_type='standard')
-#     # split the data and do the scaling
-#     # stores X_train, y_train, X_val, y_val and feature_names in predictor object
-#     predictor.split_scale_X_y()
+    def build_preprocessing_pipeline(self):
+        self.get_numeric_features() # sets self.num_features
+        self.preprocessor = ColumnTransformer(
+            transformers=[
+                ('cat', TargetEncoder(target_type="continuous"), self.cat_features),
+                ("month_sin", self.sin_transformer(12), self.seasonal_features),
+                ("month_cos", self.cos_transformer(12), self.seasonal_features),
+                ('num', MinMaxScaler(), self.num_features)
+            ])
+    
+    @staticmethod
+    def sin_transformer(period):
+        return FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi))
+
+    @staticmethod
+    def cos_transformer(period):
+        return FunctionTransformer(lambda x: np.cos(x / period * 2 * np.pi))
+
+
+if __name__ == "__main__":
+    from utils import Utils
+    config = Utils.read_config_for_env(config_path='config/config.yml')
+    pred_data = PredictorData(
+        config,
+        refresh_monthly=False,
+        refresh_ts_features=False,
+        num_lag_mon=3,
+        val_ratio=0.2)
+    # split the data and do the scaling
+    # stores X_train, y_train, X_val, y_val in predictor object
+    pred_data.split_X_y()
+    # encode and scale features 
+    pred_data.X_train = pred_data.preprocessor.fit_transform(
+        pred_data.X_train,
+        pred_data.y_train)
