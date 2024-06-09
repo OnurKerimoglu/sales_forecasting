@@ -442,13 +442,29 @@ class PredictorData:
                 ('num', MinMaxScaler(), self.num_features)
             ])
     
-    @staticmethod
-    def sin_transformer(period):
-        return FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi))
 
-    @staticmethod
-    def cos_transformer(period):
-        return FunctionTransformer(lambda x: np.cos(x / period * 2 * np.pi))
+from sklearn.base import BaseEstimator, TransformerMixin
+class TrigTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self,
+                 period,
+                 trigfunction):
+        self.period = period
+        self.trigfunction = trigfunction
+
+        if trigfunction == 'sin':
+            self.transformer = FunctionTransformer(lambda x: np.sin(x / period * 2 * np.pi))
+        elif trigfunction == 'cos':
+            self.transformer = FunctionTransformer(lambda x: np.cos(x / period * 2 * np.pi))
+
+    def fit(self, X, y=None):
+        self.transformer.fit(X, y)
+        return self
+
+    def transform(self, X):
+        return self.transformer.transform(X)
+
+    def get_feature_names_out(self, input_features):
+        return np.array(input_features)
 
 
 # if __name__ == "__main__":
