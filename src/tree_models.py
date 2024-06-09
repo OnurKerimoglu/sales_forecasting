@@ -17,11 +17,7 @@ class LGBM_Predictor(BasePredictor):
     """
     def __init__(
             self,
-            pred_data,
-            output_dim=1,
-            model_name='3Dense',
-            optimizer="adam",
-            metrics=['mse']):
+            pred_data):
         BasePredictor.__init__(self, pred_data)
 
         """
