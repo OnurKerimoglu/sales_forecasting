@@ -1,6 +1,8 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import joblib
 import numpy as np
+import os
 import pandas as pd
 import random
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -27,6 +29,36 @@ class BasePredictor:
         """
         # input arguments
         self.pred_data = pred_data
+
+    def load_model(self, fname):
+        """
+        Load a model from a file.
+        Args:
+            fname (str): The name of the file to load the model from.
+        Returns:
+            object: The loaded model.
+        """
+        fabspath = os.path.join(
+            self.pred_data.config['root_data_path'],
+            fname)
+        model = joblib.load(fabspath)
+        return model
+
+    def save_model(self, model, fnameroot):
+        """
+        Saves a model with a filename suffixed with the current date and time.
+        Args:
+            model (object): The model to be saved.
+            fnameroot (str): The root name for the file.
+        Returns:
+            None
+        """
+        v = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fabspath = os.path.join(
+            self.pred_data.config['root_data_path'],
+            f'{fnameroot}_{v}.pkl')
+        print(f'Saving model to {fabspath}')
+        joblib.dump(model, fabspath)
 
     def split_transform(self, pred_data, transformer):
         """
@@ -58,6 +90,13 @@ class BasePredictor:
     
     @staticmethod
     def get_clean_feature_names_out(transformer):
+        """
+        Get the clean feature names from the given transformer.
+        Parameters:
+            transformer (sklearn.compose.ColumnTransformer): The transformer object.
+        Returns:
+            List[str]: The list of clean feature names.
+        """
         feats_raw = transformer.get_feature_names_out()
         feats_clean = [feat_raw.replace('remainder__', '') for feat_raw in feats_raw]
         return feats_clean
