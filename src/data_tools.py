@@ -270,8 +270,6 @@ class MonthlyData:
             Converts daily items data to monthly data.
         create_df_all(columns, shops, items, dates):
             Generates all possible combinations of shops, items, and dates.
-        create_df_all_limited(df, coldict):
-            Creates a dataframe with all possible combinations of shop-item pairs and dates.
         create_df_with_zero_sales(df, df_all, columns):
             Creates a dataframe with zero sales for missing combinations of shop-item pairs and dates.
         create_categories_df_monthly(df_daily, df_shops, df_items):
@@ -307,6 +305,17 @@ class MonthlyData:
         self.config = config
     
     def prep_monthly_data(self, df_daily, df_shops, df_items):
+        """
+        Prepares the monthly sales data by creating a full item-amounts table,
+        adding missing category IDs, and adding missing prices of non-transacted items.
+        Args:
+            df_daily (pandas.DataFrame): The daily sales data.
+            df_shops (pandas.DataFrame): The shop information.
+            df_items (pandas.DataFrame): The item information.
+        
+        Returns:
+            pandas.DataFrame: The prepared monthly sales data with time features added.
+        """
         # Create a full Item-Amounts table
         df_items_monthly = self.create_items_df_monthly(df_daily, df_shops, df_items) 
         # Add missing category_id's
@@ -333,6 +342,15 @@ class MonthlyData:
         return df_monthly
 
     def create_items_df_monthly(self, df_daily, df_shops, df_items):
+        """
+        Creates a monthly items dataframe based on the daily sales data, shop information, and item information.
+        Args:
+            df_daily (pandas.DataFrame): The daily sales data.
+            df_shops (pandas.DataFrame): The shop information.
+            df_items (pandas.DataFrame): The item information.
+        Returns:
+            pandas.DataFrame: The monthly items dataframe with zero sales for missing combinations of shop-item pairs and dates.
+        """
         df_items_monthly_transactions = self.convert_items_daily_to_monthly(
             df_daily
         )
@@ -353,6 +371,14 @@ class MonthlyData:
         return df_items_monthly
 
     def convert_items_daily_to_monthly(self, df):
+        """
+        Converts daily items data to monthly data.
+        Args:
+            self: The MonthlyData object.
+            df (pandas.DataFrame): The daily items data.
+        Returns:
+            pandas.DataFrame: The monthly items data.
+        """
         df_items_monthly_grouped = df.groupby(
         ['shop_id', 'item_id', 'monthly_period']
         )
@@ -366,29 +392,32 @@ class MonthlyData:
         return df_items_monthly
 
     def create_df_all(self, columns, shops, items, dates):
+        """
+        Generates all possible combinations of shops, items, and dates.
+        Args:
+            columns: The columns for the resulting DataFrame.
+            shops: The list of shops.
+            items: The list of items.
+            dates: The list of dates.
+        Returns:
+            pandas.DataFrame: The DataFrame containing all combinations of shops, items, and dates.
+        """
         # Generate all possible combinations of shops, items, and dates.
         all_combinations = list(itertools.product(shops, items, dates))
         df_all = pd.DataFrame(all_combinations, columns=columns)
         return df_all
 
-    def create_df_all_limited(self, df, coldict):
-        shop_item_pairs = df[[coldict['shops'], coldict['items']]].drop_duplicates()
-
-        dates = df[coldict['date']].unique()
-
-        # Create a list of all possible combinations of shop-item pairs with the dates
-        df_all = pd.DataFrame(
-            list(itertools.product(shop_item_pairs.values, dates)),
-            columns=['shop_item', coldict['date']])
-        # Split the 'shop_item' column back into separate 'shop_id' and 'item_id' columns
-        df_all[[coldict['shops'], coldict['items']]] = pd.DataFrame(
-            df_all['shop_item'].tolist(), 
-            index=df_all.index)
-        # Drop the intermediate 'shop_item' column
-        df_all = df_all.drop(columns=['shop_item'])
-        return df_all
-
     def create_df_with_zero_sales(self, df, df_all, columns):
+        """
+        Merge the given DataFrame `df` with the DataFrame `df_all` based on the specified `columns`.
+        Fill any missing values in the resulting DataFrame with 0.
+        Args:
+            df (pandas.DataFrame): The DataFrame to be merged.
+            df_all (pandas.DataFrame): The DataFrame to merge with.
+            columns (list): The columns to merge on.
+        Returns:
+            pandas.DataFrame: The merged DataFrame with missing values filled with 0.
+        """
         # Merge with the original dataframe
         df_merged = pd.merge(
             df_all,
@@ -401,6 +430,15 @@ class MonthlyData:
         return df_merged
 
     def create_categories_df_monthly(self, df_daily, df_shops, df_items):
+        """
+        Create a monthly categories dataframe based on the daily sales data, shop information, and item information.
+        Args:
+            df_daily (pandas.DataFrame): The daily sales data.
+            df_shops (pandas.DataFrame): The shop information.
+            df_items (pandas.DataFrame): The item information.
+        Returns:
+            pandas.DataFrame: The monthly categories dataframe with zero sales for missing combinations of shop-item pairs and dates.
+        """
         df_categories_monthly_transactions = self.convert_categories_daily_to_monthly(
             df_daily
         )
@@ -421,6 +459,13 @@ class MonthlyData:
         return df_categories_monthly
 
     def convert_categories_daily_to_monthly(self, df):
+        """
+        Converts daily categories data to monthly data.
+        Args:
+            df (pandas.DataFrame): The daily categories data.
+        Returns:
+            pandas.DataFrame: The monthly categories data.
+        """
         df_categories_monthly_grouped = df.groupby(
         ['shop_id', 'item_category_id', 'monthly_period']
         )
@@ -432,6 +477,14 @@ class MonthlyData:
         return df_categories_monthly
 
     def add_category_to_df(self, df_monthly, df_items):
+        """
+        Adds missing category IDs to the items monthly dataframe.
+        Args:
+            df_monthly (pandas.DataFrame): The monthly sales data.
+            df_items (pandas.DataFrame): The item information.
+        Returns:
+            pandas.DataFrame: The items monthly dataframe with missing category IDs filled.
+        """
         df_monthly_full = df_monthly.loc[df_monthly['item_category_id'].notna(), :]  #.copy()
         df_monthly_missing = df_monthly.loc[df_monthly['item_category_id'].isna(), :].copy()
         df_monthly_missing.drop(['item_category_id'], axis=1, inplace=True)
@@ -447,6 +500,17 @@ class MonthlyData:
         return df_items_monthly
 
     def add_avg_shopitem_price_to_df(self, df_monthly, df_daily_train, method):
+        """
+        Adds the average shop-item-specific or category-specific price to the DataFrame.
+        Args:
+            df_monthly (DataFrame): The DataFrame containing the monthly data.
+            df_daily_train (DataFrame): The DataFrame containing the daily training data.
+            method (str): The method to use for filling missing prices.
+        Returns:
+            DataFrame: The DataFrame with the average shop-item-specific or category-specific price added.
+        Raises:
+            ValueError: If the method is unknown.
+        """
         df_monthly_full = df_monthly.loc[df_monthly['price'].notna(), :]
         df_monthly_miss = df_monthly.loc[df_monthly['price'].isna(), :].copy()
         print(f'{df_monthly_full.shape[0]} and {df_monthly_miss.shape[0]} rows with filled and missing prices, respectively.')
@@ -480,6 +544,16 @@ class MonthlyData:
         return df_monthly
 
     def get_mean_price(self, df_daily_train, method):
+        """
+        A function to calculate the mean price based on the specified method.
+        Args:
+            df_daily_train (DataFrame): The DataFrame containing the daily training data.
+            method (str): The method for calculating the mean price.
+        Returns:
+            tuple: A tuple containing the mean price DataFrame and the columns used for merging.
+        Raises:
+            ValueError: If the method is unknown.
+        """
         if method == 'mean shop-item-specific price':
             # calculate mean shop-item price:
             mean_price = df_daily_train[['shop_id', 'item_id', 'price']].groupby(['shop_id', 'item_id']).mean().reset_index()
@@ -496,6 +570,13 @@ class MonthlyData:
 
     # Year and month can help capturing the trend and the seasonality, respectively
     def add_time_features(self, df_monthly):
+        """
+        Adds year and month columns to the given DataFrame containing monthly sales data.
+        Args:
+            df_monthly (pandas.DataFrame): The DataFrame containing monthly sales data.
+        Returns:
+            pandas.DataFrame: The modified DataFrame with additional year and month columns.
+        """
         df_monthly['year'] = df_monthly['monthly_period'].dt.year
         df_monthly['month'] = df_monthly['monthly_period'].dt.month
         return df_monthly
@@ -506,6 +587,17 @@ class MonthlyData:
             lags_to_include=3,
             lag_features=['price', 'amount_item', 'amount_cat']
             ):
+        """
+        Adds lag features to the given DataFrame containing monthly sales data.
+        Args:
+            df_monthly (pandas.DataFrame): The DataFrame containing monthly sales data.
+            lags_to_include (int, optional): The number of lag features to include.
+                Defaults to 3.
+            lag_features (List[str], optional): The list of features to include lag features for.
+                Defaults to ['price', 'amount_item', 'amount_cat'].
+        Returns:
+            pandas.DataFrame: The modified DataFrame with additional lag features.
+        """
         for feature in lag_features:
             df_monthly = self.add_feature_lags(
                 df_monthly,
@@ -519,6 +611,17 @@ class MonthlyData:
             mas_to_include=[2],
             ma_features=['price_l1', 'amount_item_l1', 'amount_cat_l1']
             ):
+        """
+        Adds moving average features to the monthly sales data.
+        Args:
+            df_monthly (pandas.DataFrame): The DataFrame containing monthly sales data.
+            mas_to_include (List[int], optional): The list of moving average periods to include.
+                Defaults to [2].
+            ma_features (List[str], optional): The list of features to include moving average features for.
+                Defaults to ['price_l1', 'amount_item_l1', 'amount_cat_l1'].
+        Returns:
+            pandas.DataFrame: The modified DataFrame with additional moving average features.
+        """
         for feature in ma_features:
             df_monthly = self.add_feature_moving_averages(
                 df_monthly,
@@ -527,12 +630,30 @@ class MonthlyData:
         return df_monthly
 
     def add_feature_lags(self, df, column, lagcount):
+        """
+        Adds lags of a given feature to the dataframe.
+        Parameters:
+            df (pandas.DataFrame): The input dataframe.
+            column (str): The name of the feature to add lags for.
+            lagcount (int): The number of lags to add.
+        Returns:
+            pandas.DataFrame: The modified dataframe with added lags.
+        """
         for lag in range(1, lagcount+1):
             new_column_name = column + '_l' + str(lag)
             df[new_column_name] = df.groupby(['shop_id', 'item_id'])[column].shift(lag)
         return df
 
     def add_feature_moving_averages(self, df, column, windows):
+        """
+        Adds moving averages of a given feature to the dataframe.
+        Parameters:
+            df (pandas.DataFrame): The input dataframe.
+            column (str): The name of the feature to add moving averages for.
+            windows (List[int]): The list of window sizes for the moving averages.
+        Returns:
+            pandas.DataFrame: The modified dataframe with additional moving average features.
+        """
         for window in windows:
             new_column_name = column + '_ma' + str(window)
             df[new_column_name] = df.groupby(['shop_id', 'item_id'])[column].transform(lambda x: x.rolling(window=window).mean())
