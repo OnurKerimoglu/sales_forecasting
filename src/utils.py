@@ -2,6 +2,11 @@ import yaml
 
 
 class Utils:
+    """
+    A utility class with helper functions.
+    Methods:
+        read_config_for_env(config_path, env): Reads the config file for the specified environment.
+    """
     def read_config_for_env(config_path="config/config.yml", env="local"):
         """
         Reads the config file for the specified environment.
