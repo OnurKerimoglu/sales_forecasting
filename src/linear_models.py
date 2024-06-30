@@ -1,10 +1,8 @@
-import lightgbm as lgb
-import numpy as np
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import TargetEncoder, MinMaxScaler
 
 # local imports
-from model_tools import PredictorData, BasePredictor, TrigTransformer
+from model_tools import BasePredictor, TrigTransformer
 
 
 class LinearRegressor(BasePredictor):
@@ -34,7 +32,6 @@ class LinearRegressor(BasePredictor):
         # create preprocessing pipeline
         self.build_transformer_pipeline()
 
-
     def build_transformer_pipeline(self):
         """
         This method creates a ColumnTransformer object that applies:
@@ -55,7 +52,7 @@ class LinearRegressor(BasePredictor):
             ],
             remainder='passthrough'
             )
-        
+
 
 # if __name__ == "__main__":
 #     from utils import Utils

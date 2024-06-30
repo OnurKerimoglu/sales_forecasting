@@ -5,7 +5,8 @@ from tensorflow.keras.layers import Dense, Dropout, Input
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
 
-from model_tools import PredictorData, BasePredictor, TrigTransformer
+from model_tools import BasePredictor, TrigTransformer
+
 
 class TF_NN_Predictor(BasePredictor):
     """
@@ -67,9 +68,9 @@ class TF_NN_Predictor(BasePredictor):
 
         # create preprocessing pipeline
         self.build_transformer_pipeline()
-        
+
     def create_model(self):
-        print ('Creating model')
+        print('Creating model')
         if self.pred_data.X_train is None:
             raise ValueError('pred_data.X_train has not been set yet. Call split_transform()')
         else:
@@ -105,15 +106,15 @@ class TF_NN_Predictor(BasePredictor):
         # Input layer
         NN_model.add(Input((self.input_dim,)))
         # Hidden Layers
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(32, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(32, kernel_initializer='normal', activation='relu'))
+        NN_model.add(Dense(32, kernel_initializer='normal', activation='relu'))
+        NN_model.add(Dense(32, kernel_initializer='normal', activation='relu'))
         # Dropout Layer
         NN_model.add(Dropout(0.2))
         # Output Layer
-        NN_model.add(Dense(self.output_dim, kernel_initializer='normal',activation='linear'))
+        NN_model.add(Dense(self.output_dim, kernel_initializer='normal', activation='linear'))
         return NN_model
-    
+
     def nn_model_4Dense(self):
         """
         Creates a neural network model with four dense layers and a dropout layer.
@@ -124,19 +125,19 @@ class TF_NN_Predictor(BasePredictor):
         # Input layer
         NN_model.add(Input((self.input_dim,)))
         # Hidden Layers
-        NN_model.add(Dense(24, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(48, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(48, kernel_initializer='normal',activation='relu'))
-        NN_model.add(Dense(24, kernel_initializer='normal',activation='relu'))
+        NN_model.add(Dense(24, kernel_initializer='normal', activation='relu'))
+        NN_model.add(Dense(48, kernel_initializer='normal', activation='relu'))
+        NN_model.add(Dense(48, kernel_initializer='normal', activation='relu'))
+        NN_model.add(Dense(24, kernel_initializer='normal', activation='relu'))
         # Dropout Layer
         NN_model.add(Dropout(0.2))
         # Output Layer
-        NN_model.add(Dense(self.output_dim, kernel_initializer='normal',activation='linear'))
+        NN_model.add(Dense(self.output_dim, kernel_initializer='normal', activation='linear'))
         return NN_model
-    
+
     def compile_summarize_model(self):
         """
-        Compiles the neural network model with the specified 
+        Compiles the neural network model with the specified
         loss function, optimizer, and metrics.
         and prints a summary of its architecture.
         Parameters:
@@ -144,7 +145,7 @@ class TF_NN_Predictor(BasePredictor):
         Returns:
             None
         """
-        #Compile the network
+        # compile the network
         self.model.compile(
             loss=tf.keras.losses.mse,
             optimizer=self.optimizer,
@@ -158,17 +159,18 @@ class TF_NN_Predictor(BasePredictor):
         Returns:
             list: A list of callbacks
         """
-        #Define a checkpoint callback :
+        # define a checkpoint callback:
         checkpoint = ModelCheckpoint(
             '%s_weights-{epoch:03d}--{val_loss:.5f}.keras'%self.model_name,
             monitor='val_loss',
-            verbose = 1,
-            save_best_only = True,
-            mode ='auto')
+            verbose=1,
+            save_best_only=True,
+            mode='auto')
+        # define an early stopping callback:
         earlystop = EarlyStopping(
             monitor='val_loss',
             patience=3,
-            restore_best_weights= True)
+            restore_best_weights=True)
         self.callbacks = [checkpoint, earlystop]
 
     def build_transformer_pipeline(self):

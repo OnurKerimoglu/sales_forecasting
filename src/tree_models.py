@@ -1,9 +1,7 @@
-import lightgbm as lgb
-import numpy as np
 from sklearn.compose import ColumnTransformer
 
 # local imports
-from model_tools import PredictorData, BasePredictor, TrigTransformer
+from model_tools import BasePredictor, TrigTransformer
 
 
 class LGBM_Predictor(BasePredictor):
@@ -33,7 +31,6 @@ class LGBM_Predictor(BasePredictor):
         # create preprocessing pipeline
         self.build_transformer_pipeline()
 
-
     def build_transformer_pipeline(self):
         """
         This method creates a ColumnTransformer object that applies:
@@ -52,8 +49,7 @@ class LGBM_Predictor(BasePredictor):
                 ],
             remainder='passthrough'
             )
-    
-        
+
 
 # if __name__ == "__main__":
 #     from utils import Utils
