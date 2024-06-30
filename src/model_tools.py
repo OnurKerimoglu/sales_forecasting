@@ -7,11 +7,11 @@ import pandas as pd
 import random
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import FunctionTransformer
-from sklearn.metrics import mean_squared_error as mse 
 from sklearn.model_selection import train_test_split
 
 # local imports
 from data_tools import RawData, MonthlyData
+
 
 class BasePredictor:
     """
@@ -21,7 +21,8 @@ class BasePredictor:
     Methods:
         load_model(self, fname): Load a model from a file.
         save_model(self, model, fnameroot): Saves a model with a filename suffixed with the current date and time.
-        split_transform(self, pred_data, transformer): Splits the data into training and validation sets, and transforms the data using the defined transformer.
+        split_transform(self, pred_data, transformer): Splits the data into training and validation sets,
+            and transforms the data using the defined transformer.
         get_clean_feature_names_out(transformer): Get the clean feature names from the given transformer.
     """
     def __init__(
@@ -94,7 +95,7 @@ class BasePredictor:
             pred_data.X_val)
         pred_data.transformed_feature_names = self.get_clean_feature_names_out(transformer)
         return pred_data
-    
+
     @staticmethod
     def get_clean_feature_names_out(transformer):
         """
@@ -107,7 +108,7 @@ class BasePredictor:
         feats_raw = transformer.get_feature_names_out()
         feats_clean = [feat_raw.replace('remainder__', '') for feat_raw in feats_raw]
         return feats_clean
-        
+
 
 class PredictorData:
     """
@@ -143,20 +144,20 @@ class PredictorData:
         prep_raw_data(self): Prepares the raw data.
         prep_merged_data(self): Prepares the merged data.
         find_num_val_mon(self, df): Finds the number of months to use for validation.
-        split_train_test_dailydata(self, df): plits the given daily data into training and testing sets.
-        split_train_test_dailydata_random(self, df): Splits the given daily data into training and validation sets randomly.
-        split_train_test_dailydata_by_months(self, df): Splits the given daily data into training and testing sets based on months.
-        split_train_test_dailydata_last_months_val(self, df, num_val_mon): Splits the given daily data into training and testing sets
+        split_train_test_dailydata(self, df): splits the given daily data into train and test  sets.
+        split_train_test_dailydata_random(self, df): sub method of above: randomly.
+        split_train_test_dailydata_by_months(self, df): sub method of above: based on months.
+        split_train_test_dailydata_last_months_val(self, df, num_val_mon): sub method of above: based on last months.
         clean_daily_data(self): Cleans the daily data.
         create_ts_features(self, df_base, num_lag_mon): Create time series features for the given DataFrame.
         split_X_y(self): Splits the input data into training X,y and validation X,y
-        split_train_test_data(self, df):Splits the given DataFrame into training and validation sets.
-        split_train_test_data_random(self, df):  Splits the given DataFrame into training and validation sets randomly.
-        split_train_test_data_by_months(self, df): Splits the given DataFrame into training and validation sets based on months.
-        split_train_test_data_last_months_val(self, df, num_val_mon): Splits the given DataFrame into training and validation sets based on the last months.
+        split_train_test_data(self, df): splits the given monthly data into train and test sets.
+        split_train_test_data_random(self, df): submethod of of above: randomly.
+        split_train_test_data_by_months(self, df): submethod of of above:  based on months.
+        split_train_test_data_last_months_val(self, df, num_val_mon): submethod of of above:  based on the last months.
         get_X_y_for_split(self, df): get X, y for a given df.
     """
-    
+
     def __init__(
             self,
             config,
@@ -177,18 +178,18 @@ class PredictorData:
                 Whether to refresh the monthly data. Defaults to False.
             refresh_ts_features (bool, optional):
                 Whether to refresh the time series features. Defaults to False.
-            split_strategy (str, optional): 
+            split_strategy (str, optional):
                 The strategy for splitting the data. Defaults to 'random'.
                 Options: 'random', 'months', 'last_months_val'
-            clean_strategy (str, optional): 
+            clean_strategy (str, optional):
                 The strategy for cleaning the data. Defaults to 'olrem_for_all'.
                 Options: 'olrem_for_all', 'no_olrem_for_val'
-            num_lag_mon (int, optional): 
+            num_lag_mon (int, optional):
                 The number of lag months to include. Defaults to 3.
-            val_ratio (float, optional): 
+            val_ratio (float, optional):
                 The ratio of validation data. Defaults to 0.2.
         """
-                
+
         # set input args
         self.config = config
         self.refresh_monthly = refresh_monthly
@@ -197,10 +198,10 @@ class PredictorData:
         self.clean_strategy = clean_strategy
         self.num_lag_mon = num_lag_mon
         self.val_ratio = val_ratio
-        
+
         # predefined constants
         self.cols_to_drop = ['price', 'amount_item', 'amount_cat']
-        self.cat_features = ['shop_id', 'item_id', 'item_category_id'] 
+        self.cat_features = ['shop_id', 'item_id', 'item_category_id']
         self.seasonal_features = ['month']
 
         # define attributes to be set later
@@ -216,14 +217,13 @@ class PredictorData:
         self.y_val = None
         self.feature_names = None
         self.transformed_feature_names = None
-        
+
         # instantiate data classes
         self.raw_data = RawData(self.config)
         self.monthly_data = MonthlyData(self.config)
 
         # prepare monthly data
         self.prep_data()
-
 
     def prep_data(self):
         """
@@ -234,8 +234,8 @@ class PredictorData:
             None
         Side Effects:
             - Sets the `df` attribute to the prepared monthly data if `clean_strategy` is 'olrem_for_all'.
-            - Sets the `df_train` and `df_val` attributes to the prepared monthly data for 
-              the training and validation respectively if `clean_strategy` is not 'olrem_for_all'.
+            - Sets the `df_train` and `df_val` attributes to the prepared monthly data for
+                the training and validation respectively if `clean_strategy` is not 'olrem_for_all'.
             - Calls the `fix_data_types` and `set_feature_names` methods on the prepared data.
         """
         # prepare monthly data with features
@@ -260,10 +260,10 @@ class PredictorData:
                 )
             self.df_val = self.fix_data_types(self.df_val)
             self.set_feature_names(self.df_train)
-            
+
     def set_feature_names(self, df):
         """
-        Assigns feature names to the object based on the columns of the input DataFrame 'df' by excluding 'cols_to_drop'.
+        Assigns feature names to the object based on the columns of the input DataFrame  by excluding 'cols_to_drop'.
         Calculates the number of numeric features and assigns it to 'num_features'.
         Args:
             df (DataFrame): The input DataFrame containing the feature columns.
@@ -273,7 +273,7 @@ class PredictorData:
         # feature names
         self.feature_names = list(set(df.columns.values) - set(self.cols_to_drop))
         self.num_features = self.get_numeric_features()
-    
+
     def get_numeric_features(self):
         """
         Calculates a list of numeric feature names.
@@ -283,7 +283,7 @@ class PredictorData:
         num_feats = list(
             set(self.feature_names) - set(self.cat_features) - set(self.seasonal_features))
         return num_feats
-        
+
     def fix_data_types(self, df):
         """
         Fix the data types of the input DataFrame by converting the 'item_category_id' column to int32.
@@ -294,7 +294,7 @@ class PredictorData:
         """
         df = df.astype({c: np.int32 for c in ['item_category_id']})
         return df
-    
+
     def prep_monthly_data_for_split(
             self,
             columns,
@@ -303,7 +303,7 @@ class PredictorData:
         Prepares monthly data for splitting based on the specified columns and split name.
         Args:
             columns: Columns to be used for splitting.
-            splitname: Name of the split.        
+            splitname: Name of the split.
         Returns:
             pandas.DataFrame: The prepared monthly data after processing.
         """
@@ -314,7 +314,7 @@ class PredictorData:
         fn_ts = os.path.join(
             self.config['root_data_path'],
             self.config[f'fn_{splitname}_ts'])
-        
+
         if os.path.exists(fn_ts) and not self.refresh_ts_features:
             print(f'Loading {fn_ts}')
             df_ts = pd.read_parquet(fn_ts)
@@ -330,7 +330,7 @@ class PredictorData:
             print(f'Creating {fn_ts}')
             df_ts = self.create_ts_features(df_base, self.num_lag_mon)
             df_ts.to_parquet(fn_ts)
-        
+
         return df_ts
 
     def create_monthly_data(self, columns, splitname):
@@ -344,7 +344,7 @@ class PredictorData:
         Raises:
             Exception: If an unknown splitname is provided.
         """
-        # read and process rawdata 
+        # read and process rawdata
         self.prep_raw_data()
 
         if splitname == 'train':
@@ -355,15 +355,15 @@ class PredictorData:
             df_daily = self.df_daily[columns].copy()
         else:
             raise Exception(f'Unknown splitname: {splitname}')
-        
-        print (f'Creating monthly data for split {splitname}')
+
+        print(f'Creating monthly data for split {splitname}')
         df_base = self.monthly_data.prep_monthly_data(
             df_daily,
             self.raw_data.shop_list,
             self.raw_data.item_list[['item_id', 'item_category_id']].copy())
 
         return df_base
-    
+
     def prep_raw_data(self):
         """
         Prepares the raw data by loading merged data, splitting train and test data, and cleaning the daily data.
@@ -377,7 +377,7 @@ class PredictorData:
 
         # split train and test data
         self.split_train_test_dailydata(data_m)
-        
+
         # clean the data
         self.clean_daily_data()
         print('Prepared daily raw data.')
@@ -388,13 +388,13 @@ class PredictorData:
         Args:
             None
         Returns:
-            pandas.DataFrame: The merged data with 
+            pandas.DataFrame: The merged data with
         """
         data_merged = self.raw_data.merge_data()
         data_merged = self.raw_data.handle_dates(data_merged)
         # TODO: refactor into prep_raw_data function
         return data_merged
-    
+
     def find_num_val_mon(self, df):
         """
         Finds the number of months to use for validation based on the given DataFrame.
@@ -413,7 +413,7 @@ class PredictorData:
         # number of months to use for validation
         num_val_mon = round(num_efftot_mon * self.val_ratio)
         return num_val_mon
-    
+
     def split_train_test_dailydata(self, df):
         """
         Splits the given daily data into training and testing sets based on the clean strategy and split strategy.
@@ -433,7 +433,7 @@ class PredictorData:
                 self.split_train_test_dailydata_by_months(self, df)
             else:
                 raise ValueError('Unknown split strategy')
-        
+
     def split_train_test_dailydata_random(self, df):
         """
         Splits the given daily data into training and validation sets randomly based on the specified ratio.
@@ -446,7 +446,7 @@ class PredictorData:
             df,
             test_size=self.val_ratio,
             random_state=42)
-                
+
     def split_train_test_dailydata_by_months(self, df):
         """
         Splits the given daily data into training and testing sets based on months as the split strategy.
@@ -459,13 +459,13 @@ class PredictorData:
         num_val_mon = self.find_num_val_mon(df)
         if self.split_strategy == 'last_months_val':
             self.split_train_test_dailydata_last_months_val(
-                df, 
+                df,
                 num_val_mon)
         elif self.split_strategy == 'months':
             self.split_train_test_dailydata_months(
-                df, 
+                df,
                 num_val_mon)
-    
+
     def split_train_test_dailydata_months(self, df, num_val_mon):
         """
         Splits the given daily data into training and testing sets based on months as the split strategy.
@@ -506,12 +506,12 @@ class PredictorData:
     def clean_daily_data(self):
         """
         Cleans the daily data based on the specified cleaning strategy.
-        This function cleans the daily data by removing negative values and outliers. 
+        This function cleans the daily data by removing negative values and outliers.
         The cleaning strategy is determined by the `clean_strategy` attribute of the class instance.
-        If the `clean_strategy` is set to `'olrem_for_all'`, 
+        If the `clean_strategy` is set to `'olrem_for_all'`,
             the entire `df_daily` dataframe is cleaned by removing negative values and outliers.
-        If the `clean_strategy` is set to `'no_olrem_for_val'`, 
-            the `df_daily_train` dataframe is cleaned by removing negative values and outliers, 
+        If the `clean_strategy` is set to `'no_olrem_for_val'`,
+            the `df_daily_train` dataframe is cleaned by removing negative values and outliers,
             while the `df_daily_val` dataframe is cleaned by removing negative values but not outliers.
         If an unknown `clean_strategy` is provided, a `ValueError` is raised.
         Args:
@@ -542,7 +542,7 @@ class PredictorData:
                 rem_ol=False)
         else:
             raise ValueError(f'Unknown clean strategy:{self.clean_strategy}')
-        
+
     def create_ts_features(self, df_base, num_lag_mon):
         """
         Create time series features for the given DataFrame.
@@ -569,9 +569,9 @@ class PredictorData:
     def split_X_y(self):
         """
         Splits the input data into training X,y and validation X,y based on the clean strategy.
-        This function splits the input data into training and validation sets based on the clean strategy. 
+        This function splits the input data into training and validation sets based on the clean strategy.
         If the clean strategy is 'olrem_for_all', it calls the `split_train_test_data` method to split the data.
-        If the clean strategy is 'no_olrem_for_val', it does nothing as the train-test splitting has already been done. 
+        If the clean strategy is 'no_olrem_for_val', it does nothing as the train-test splitting has already been done.
         If the clean strategy is neither 'olrem_for_all' nor 'no_olrem_for_val', it raises a ValueError
         Args:
             None
@@ -586,7 +586,7 @@ class PredictorData:
             raise ValueError(f'Unknown clean strategy:{self.clean_strategy}')
         self.X_train, self.y_train = self.get_X_y_for_split(self.df_train)
         self.X_val, self.y_val = self.get_X_y_for_split(self.df_val)
-    
+
     def split_train_test_data(self, df):
         """
         Splits the given DataFrame into training and validation sets based on the specified strategy.
@@ -616,7 +616,7 @@ class PredictorData:
             df,
             test_size=self.val_ratio,
             random_state=42)
-        
+
     def split_train_test_data_by_months(self, df):
         """
         Splits the given DataFrame into training and validation sets based on months.
@@ -632,9 +632,9 @@ class PredictorData:
                 num_val_mon)
         elif self.split_strategy == 'last_months_val':
             self.split_train_test_data_last_months_val(
-                df, 
+                df,
                 num_val_mon)
-    
+
     def split_train_test_data_months(self, df, num_val_mon):
         """
         Splits the given DataFrame into training and validation sets based on months.
@@ -650,7 +650,7 @@ class PredictorData:
         # do the split
         self.df_val = df.loc[val_periods].copy()
         self.df_train = df.loc[train_periods].copy()
-    
+
     def split_train_test_data_last_months_val(self, df, num_val_mon):
         """
         Splits the given DataFrame into training and validation sets based on the last months.
@@ -670,10 +670,10 @@ class PredictorData:
         # do the split
         self.df_val = df.loc[df.index >= mperiod_val_start, :].copy()
         self.df_train = df.loc[df.index < mperiod_val_start, :].copy()
-        
+
     def get_X_y_for_split(self, df):
         """
-        Given a DataFrame `df`, this function extracts the 'amount_item' column as the target variable `y` 
+        Given a DataFrame `df`, this function extracts the 'amount_item' column as the target variable `y`
         and drops the columns specified in `self.cols_to_drop`, assigning the remaining columns to `X`.
         Args:
             df (pandas.DataFrame): The input DataFrame.
@@ -689,7 +689,7 @@ class PredictorData:
 
 class TrigTransformer(BaseEstimator, TransformerMixin):
     """
-    A transformer calss that inherits both `BaseEstimator` and `TransformerMixin` and 
+    A transformer calss that inherits both `BaseEstimator` and `TransformerMixin` and
     applies a trigonometric (sin or cos) transformation to input data
     Attributes:
         period(int): the period of the trigonometric function
@@ -765,7 +765,7 @@ class TrigTransformer(BaseEstimator, TransformerMixin):
 #     # split the data and do the scaling
 #     # stores X_train, y_train, X_val, y_val in predictor object
 #     pred_data.split_X_y()
-#     # encode and scale features 
+#     # encode and scale features
 #     pred_data.X_train = pred_data.preprocessor.fit_transform(
 #         pred_data.X_train,
 #         pred_data.y_train)
