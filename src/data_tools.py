@@ -2,7 +2,6 @@ import itertools
 import os
 import numpy as np
 import pandas as pd
-import parquet
 
 
 class RawData:
@@ -291,7 +290,7 @@ class MonthlyData:
         add_feature_lags(self, df, column, lagcount):
             Adds lags of a given feature to the dataframe.
         add_feature_moving_averages(self, df, column, windows)
-            Adds moving averages of a given feature to the dataframe.        
+            Adds moving averages of a given feature to the dataframe.
     """
     def __init__(self, config):
         """
@@ -303,7 +302,7 @@ class MonthlyData:
         If the env is set to 'local', known  data schema issues are fixed.
         """
         self.config = config
-    
+
     def prep_monthly_data(self, df_daily, df_shops, df_items):
         """
         Prepares the monthly sales data by creating a full item-amounts table,
@@ -312,17 +311,18 @@ class MonthlyData:
             df_daily (pandas.DataFrame): The daily sales data.
             df_shops (pandas.DataFrame): The shop information.
             df_items (pandas.DataFrame): The item information.
-        
         Returns:
             pandas.DataFrame: The prepared monthly sales data with time features added.
         """
         # Create a full Item-Amounts table
-        df_items_monthly = self.create_items_df_monthly(df_daily, df_shops, df_items) 
+        df_items_monthly = self.create_items_df_monthly(df_daily, df_shops, df_items)
         # Add missing category_id's
         df_items_monthly = self.add_category_to_df(df_items_monthly, df_items)
         # df_items_monthly.info()
-        # Add missing prices of non-transacted items: first based on average price of items in each shop, then average price of items in all shops, then average price of categories in all shops, then the global average price.
-        df_items_monthly = self.add_avg_shopitem_price_to_df(df_items_monthly, df_daily, 'mean shop-item-specific price')
+        # Add missing prices of non-transacted items
+        df_items_monthly = self.add_avg_shopitem_price_to_df(
+            df_items_monthly, df_daily,
+            'mean shop-item-specific price')
         # df_items_monthly.info()
         # Add category amounts as a feature
         # Create a full Item-Amounts table
@@ -349,7 +349,8 @@ class MonthlyData:
             df_shops (pandas.DataFrame): The shop information.
             df_items (pandas.DataFrame): The item information.
         Returns:
-            pandas.DataFrame: The monthly items dataframe with zero sales for missing combinations of shop-item pairs and dates.
+            pandas.DataFrame: The monthly items dataframe including zero sales for shop-item pairs and dates
+                that are absent in the transaction data.
         """
         df_items_monthly_transactions = self.convert_items_daily_to_monthly(
             df_daily
@@ -380,15 +381,15 @@ class MonthlyData:
             pandas.DataFrame: The monthly items data.
         """
         df_items_monthly_grouped = df.groupby(
-        ['shop_id', 'item_id', 'monthly_period']
-        )
+            ['shop_id', 'item_id', 'monthly_period']
+            )
         df_items_monthly = df_items_monthly_grouped.agg(
             {
-            'item_category_id': 'first',
-            'price': 'mean',
-            'amount': 'sum',
+                'item_category_id': 'first',
+                'price': 'mean',
+                'amount': 'sum',
             }
-        ).reset_index()
+            ).reset_index()
         return df_items_monthly
 
     def create_df_all(self, columns, shops, items, dates):
@@ -437,7 +438,8 @@ class MonthlyData:
             df_shops (pandas.DataFrame): The shop information.
             df_items (pandas.DataFrame): The item information.
         Returns:
-            pandas.DataFrame: The monthly categories dataframe with zero sales for missing combinations of shop-item pairs and dates.
+            pandas.DataFrame: The monthly categories dataframe including zero sales for shop-item pairs and dates
+                that are absent in the transactions data.
         """
         df_categories_monthly_transactions = self.convert_categories_daily_to_monthly(
             df_daily
@@ -455,7 +457,7 @@ class MonthlyData:
             df_categories_monthly_transactions,
             df_categories_monthly_all,
             columns)
-        #df_categories_monthly.info()
+        # df_categories_monthly.info()
         return df_categories_monthly
 
     def convert_categories_daily_to_monthly(self, df):
@@ -467,11 +469,11 @@ class MonthlyData:
             pandas.DataFrame: The monthly categories data.
         """
         df_categories_monthly_grouped = df.groupby(
-        ['shop_id', 'item_category_id', 'monthly_period']
-        )
+            ['shop_id', 'item_category_id', 'monthly_period']
+            )
         df_categories_monthly = df_categories_monthly_grouped.agg(
             {
-            'amount': 'sum',
+                'amount': 'sum',
             }
         ).reset_index()
         return df_categories_monthly
@@ -485,7 +487,7 @@ class MonthlyData:
         Returns:
             pandas.DataFrame: The items monthly dataframe with missing category IDs filled.
         """
-        df_monthly_full = df_monthly.loc[df_monthly['item_category_id'].notna(), :]  #.copy()
+        df_monthly_full = df_monthly.loc[df_monthly['item_category_id'].notna(), :]
         df_monthly_missing = df_monthly.loc[df_monthly['item_category_id'].isna(), :].copy()
         df_monthly_missing.drop(['item_category_id'], axis=1, inplace=True)
         df_monthly_missing_filled = pd.merge(
@@ -494,7 +496,7 @@ class MonthlyData:
             on='item_id',
             how='left')
         df_items_monthly = pd.concat([df_monthly_full, df_monthly_missing_filled], ignore_index=True)
-        df_items_monthly = df_items_monthly.sort_values(by = ['monthly_period', 'shop_id', 'item_id'])
+        df_items_monthly = df_items_monthly.sort_values(by=['monthly_period', 'shop_id', 'item_id'])
         count_missing_cats = df_items_monthly.loc[df_items_monthly['item_category_id'].isna(), :].shape[0]
         print(f'after the operation, count of rows with missing categories: {count_missing_cats}')
         return df_items_monthly
@@ -502,6 +504,10 @@ class MonthlyData:
     def add_avg_shopitem_price_to_df(self, df_monthly, df_daily_train, method):
         """
         Adds the average shop-item-specific or category-specific price to the DataFrame.
+        first based on average price of items in each shop,
+        then average price of items in all shops,
+        then average price of categories in all shops,
+        then the global average price.
         Args:
             df_monthly (DataFrame): The DataFrame containing the monthly data.
             df_daily_train (DataFrame): The DataFrame containing the daily training data.
@@ -513,26 +519,32 @@ class MonthlyData:
         """
         df_monthly_full = df_monthly.loc[df_monthly['price'].notna(), :]
         df_monthly_miss = df_monthly.loc[df_monthly['price'].isna(), :].copy()
-        print(f'{df_monthly_full.shape[0]} and {df_monthly_miss.shape[0]} rows with filled and missing prices, respectively.')
+        print(f'{df_monthly_full.shape[0]} and {df_monthly_miss.shape[0]} rows with filled and missing prices.')
         if df_monthly_miss.shape[0] > 0:
             print(f'Filling missing with {method}')
             df_monthly_miss.drop(['price'], axis=1, inplace=True)
             mean_price, merge_columns = self.get_mean_price(df_daily_train, method)
             # fill the missing
             df_monthly_miss_filled = pd.merge(
-                df_monthly_miss, 
+                df_monthly_miss,
                 mean_price,
                 on=merge_columns,
                 how='left')
             df_monthly = pd.concat([df_monthly_full, df_monthly_miss_filled], ignore_index=True)
-            df_monthly = df_monthly.sort_values(by = ['monthly_period', 'shop_id', 'item_id'])
+            df_monthly = df_monthly.sort_values(by=['monthly_period', 'shop_id', 'item_id'])
             count_missing_price = df_monthly.loc[df_monthly['price'].isna(), :].shape[0]
             print(f'after the operation, count of rows with missing price: {count_missing_price}')
-            if count_missing_price > 0: 
+            if count_missing_price > 0:
                 if method == 'mean shop-item-specific price':
-                    df_monthly = self.add_avg_shopitem_price_to_df(df_monthly, df_daily_train, 'mean item-specific price')
+                    df_monthly = self.add_avg_shopitem_price_to_df(
+                        df_monthly,
+                        df_daily_train,
+                        'mean item-specific price')
                 elif method == 'mean item-specific price':
-                    df_monthly = self.add_avg_shopitem_price_to_df(df_monthly, df_daily_train, 'mean category-specific price')
+                    df_monthly = self.add_avg_shopitem_price_to_df(
+                        df_monthly,
+                        df_daily_train,
+                        'mean category-specific price')
                 elif method == 'mean category-specific price':
                     print('Filling missing with global average price')
                     global_avg_price = df_daily_train[['price']].mean().values[0]
@@ -556,13 +568,16 @@ class MonthlyData:
         """
         if method == 'mean shop-item-specific price':
             # calculate mean shop-item price:
-            mean_price = df_daily_train[['shop_id', 'item_id', 'price']].groupby(['shop_id', 'item_id']).mean().reset_index()
+            mean_price_gr = df_daily_train[['shop_id', 'item_id', 'price']].groupby(['shop_id', 'item_id'])
+            mean_price = mean_price_gr.mean().reset_index()
             merge_columns = ['shop_id', 'item_id']
         elif method == 'mean item-specific price':
-            mean_price = df_daily_train[['item_id', 'price']].groupby(['item_id']).mean().reset_index()
+            mean_price_gr = df_daily_train[['item_id', 'price']].groupby(['item_id'])
+            mean_price = mean_price_gr.mean().reset_index()
             merge_columns = ['item_id']
         elif method == 'mean category-specific price':
-            mean_price = df_daily_train[['item_category_id', 'price']].groupby(['item_category_id']).mean().reset_index()
+            mean_price_gr = df_daily_train[['item_category_id', 'price']].groupby(['item_category_id'])
+            mean_price = mean_price_gr.mean().reset_index()
             merge_columns = ['item_category_id']
         else:
             raise ValueError(f'Uknown method: {method}')
@@ -604,7 +619,7 @@ class MonthlyData:
                 feature,
                 lags_to_include)
         return df_monthly
-    
+
     def add_ma_features(
             self,
             df_monthly,
@@ -656,7 +671,8 @@ class MonthlyData:
         """
         for window in windows:
             new_column_name = column + '_ma' + str(window)
-            df[new_column_name] = df.groupby(['shop_id', 'item_id'])[column].transform(lambda x: x.rolling(window=window).mean())
+            df_gr = df.groupby(['shop_id', 'item_id'])[column]
+            df[new_column_name] = df_gr.transform(lambda x: x.rolling(window=window).mean())
         return df
 
 # # for testing:
