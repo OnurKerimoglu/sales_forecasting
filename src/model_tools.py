@@ -428,9 +428,9 @@ class PredictorData:
             self.df_daily = df
         else:
             if self.split_strategy == 'random':
-                self.split_train_test_dailydata_random(self, df)
+                self.split_train_test_dailydata_random(df)
             elif self.split_strategy == ['months', 'last_months_val']:
-                self.split_train_test_dailydata_by_months(self, df)
+                self.split_train_test_dailydata_by_months(df)
             else:
                 raise ValueError('Unknown split strategy')
 

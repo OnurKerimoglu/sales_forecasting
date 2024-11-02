@@ -7,6 +7,7 @@ class Utils:
     Methods:
         read_config_for_env(config_path, env): Reads the config file for the specified environment.
     """
+    @staticmethod
     def read_config_for_env(config_path="config/config.yml", env="local"):
         """
         Reads the config file for the specified environment.
@@ -23,6 +24,6 @@ class Utils:
 
 
 # # for testing:
-# if __name__ == "__main__":
-#     conf = Utils.read_config_for_env()
-#     print(conf)
+if __name__ == "__main__":
+    conf = Utils.read_config_for_env()
+    print(conf)
