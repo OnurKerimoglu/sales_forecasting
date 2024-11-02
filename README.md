@@ -1,3 +1,5 @@
+[![CodeQL Advanced](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/codeql.yml/badge.svg?branch=main&event=push)](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/codeql.yml)
+[![Dependency review](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/dependency-review.yml)
 [![flake8 Lint](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/main.yml)
 
 # Predicting Sales of Items in Shops
