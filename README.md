@@ -19,7 +19,7 @@ Raw data comprise following tables and fields:
 - category_list: ['item_category_name', 'item_category_id']
 - transaction: ['date', 'shop', 'item', 'price', 'amount' ]
 
-The `RawData` class provided by [data_utils.py](src/data_utils.py) module loads the raw data upon instantiation, after fixing some data schema issues (in transactions table, 'shop', 'item' -> 'shop_id', 'item_id').
+The `RawData` class provided by the [data_tools.py](src/data_tools.py) module loads the raw data upon instantiation, after fixing some data schema issues (in transactions table, 'shop', 'item' -> 'shop_id', 'item_id').
 
 To ease data analysis and interpretability, the 4 tables are merged into one single table (`df_daily`), data types are simplified for better computational efficiency (float64->float32, int64->int32), date strings are converted to datetime objects, a 'monthly_period' (%YYYY-%mm, from now on Mperiod) field is created, and the implausible (negative) and outliers found in price and amount data are cleaned. For the outlier removal, two different options were tested:
 1. removing outliers only for a preselected train period (and not for the validation period)
@@ -32,7 +32,7 @@ See [EDA.ipynb](notebooks/EDA.ipynb). After the processing of the raw data, the 
 
 ### Creation of the monthly data
 
-Since our objective is to predict the monthly total sales, the raw (daily) data needs to be aggregated to a monthly form. **Assuming** that all items are available in all shops, this table should provide monthly aggregate data for each item-shop-Mperiod combination. For this purpose, following steps are taken (by data_tools.MonthlyData.prep_monthly_data method):
+Since our objective is to predict the monthly total sales, the raw (daily) data needs to be aggregated to a monthly form. **Assuming** that all items are available in all shops, this table should provide monthly aggregate data for each item-shop-Mperiod combination. For this purpose, following steps are taken (by the prep_monthly_data method provided by the `MonthlyData` class in [data_tools.py](src/data_tools.py):
 
 #### Creating a monthly 'item sales' table
 With MonthlyData.create_items_df_monthly method:
@@ -85,11 +85,12 @@ shop_id, item_id, item_category_id, year, month, price_l1, price_l2, price_l3, a
 
 ## Model Training Pipeline
 ### Data Preparation
+Methods responsible for the preparation of model-specific data are provided by the `PredictorData` Class of the [model_tools.py](src/model_tools.py) module. 
 model_tools.PredictorData.prep_data method, activated during instantiation of the PredictorData class automates the data preparation process described above. Note that, for saving time, if refresh_monthly and refresh_ts_features arguments are not specified to be True, the previously prepared and these data will be loaded from previously saved parquet files.
 
 
 ### Model creation, training and validation
-In this project, families of models are defined as classes in separate modules, which define their own specialized methods, and attributes, such as the transformer pipelines specifically suited to each of these model families. These model classes in turn  are derived from a BasePredictor class provided by the model_tools module, which provides the shared methods and attributes relevant for all model classes. 
+In this project, families of models are defined as classes in separate modules, which define their own specialized methods, and attributes, such as the transformer pipelines specifically suited to each of these model families. These model classes in turn  are derived from a `BasePredictor` class ([model_tools.py](src/model_tools.py)) provided by the model_tools module, which provides the shared methods and attributes relevant for all model classes. 
 
 Here, we have experimented with 3 models so far:
 - linear_models.LinearRegressor
@@ -97,19 +98,19 @@ Here, we have experimented with 3 models so far:
 - tree_models.LGBM_Predictor
 
 At this testing phase, training and validation is performed with jupyter notebooks. 3 Approaches has been tested so far:
-- linear models: For their generalization power and ease of interpretability, linear regression family of models is often a must-try step for a regression problem. Here we tried ElasticNet, but the results are not convincing.
-- tree models: Tree-based models are known for their accuracy, although they are easy to overfit without careful validation. Here we tried LGBM, which showed decent performance.
-- neural network models: neural nets are usually not preferred for tabular data, but given their endless flexibility, one can always explore different architectures that might prove to be specifically suitable for the problem at hand. Here we experimented with simple architectures with 3 and 4 dense layers.
+- linear models: For their generalization power and ease of interpretability, linear regression family of models is often a must-try step for a regression problem. Here we tried ElasticNet (details in: `LinearRegressor` class in [linear_models.py](src/linear_models.py)), but the results are not convincing (see [Training_linreg_split_months.ipynb](notebooks/Training_linreg_split_months.ipynb)).
+- tree models: Tree-based models are known for their accuracy, although they are easy to overfit without careful validation. Here we tried LGBM (details in: `LGBM_Predictor` in [tree_models.py](src/tree_models.py)), which showed decent performance, both when the train-test split was made based on first and last months (see: [Training_lgbm_split_months.ipynb](notebooks/Training_lgbm_split_months.ipynb)) and when the split was made by randomly assigning months to train/test datasets (see: [Training_lgbm_split_random.ipynb](notebooks/Training_lgbm_split_random.ipynb)).
+- neural network models: neural nets are usually not preferred for tabular data, but given their endless flexibility, one can always explore different architectures that might prove to be specifically suitable for the problem at hand. Here we experimented with simple architectures with 3 and 4 dense layers (details: `TF_NN_Predictor` class in [nn_models.py](src/nn_models.py)), neither of which showed convinced performance (see: [Training_NN_3D_split_months.ipynb](notebooks/Training_NN_3D_split_months.ipynb) and [Training_NN_4D_split_months.ipynb](Training_NN_4D_split_months.ipynb)).
 
-#### Transformer Pipeline
+#### Note on Transformer Pipelines
 - The NN and Linear regression approaches:
     - require the categorical variables to be encoded. The id's are in this category. Because of their high cardinality, target encoding was preferred.
     - require the numerical values to be normalized. Here MinMaxScaler was preferred
 - The tree based approaches do need transformation of categorical and numerical features
-- For all models, a cyclic encoder was included in the transformer to account for the seasonality of the month feature
+- For all models, a cyclic encoder was included in the transformer to account for the seasonality of the month feature (see the `TrigTransformer` class in [model_tools.py](src/model_tools.py) module).
 
 ## Forecasting Pipeline
-For the forecasting, we need to:
+Based on the experiments listed above, the LGBM-Predictor was used for the forecasting pipeline. For the forecasting, we need to:
 - create the feature table (X) for the next month. For this purpose:
     - shop_id, item_id, item_category_id: copied from the previous month
     - year, month: constructed for the month for which a forecast is needed:
@@ -118,6 +119,7 @@ For the forecasting, we need to:
 - transform the features 
 - load a previously saved model
 - use model.predict() method to obtain the predictions
+
 An example prediction pipeline is provided in [notebooks/Prediction.ipynb](notebooks/Prediction.ipynb).
 
 
