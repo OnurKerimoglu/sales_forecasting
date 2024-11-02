@@ -1,3 +1,5 @@
+[![flake8 Lint](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/OnurKerimoglu/sales_forecasting/actions/workflows/main.yml)
+
 # Predicting Sales of Items in Shops
 
 ## Objective
