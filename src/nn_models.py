@@ -161,7 +161,7 @@ class TF_NN_Predictor(BasePredictor):
         """
         # define a checkpoint callback:
         checkpoint = ModelCheckpoint(
-            '%s_weights-{epoch:03d}--{val_loss:.5f}.keras'%self.model_name,
+            '%s_weights-{epoch:03d}--{val_loss:.5f}.keras' % self.model_name,
             monitor='val_loss',
             verbose=1,
             save_best_only=True,
