@@ -36,7 +36,7 @@ Since our objective is to predict the monthly total sales, the raw (daily) data 
 
 #### Creating a monthly 'item sales' table
 With MonthlyData.create_items_df_monthly method:
-- create a total item sales table by performing a grouby (on shop_id, item_id, Mperiod) & aggregate operation, by summing the amounts, averaging prices, and taking the first of the item_category_id's (for each item_id there is only one item_category_id anyway)  
+- create a total item sales table by performing a groupby (on shop_id, item_id, Mperiod) & aggregate operation, by summing the amounts, averaging prices, and taking the first of the item_category_id's (for each item_id there is only one item_category_id anyway)  
 - create a table with all possible shop_id-item_id-Mperiod combinations
 - merge the two tables
 - Fill the NaN's (which arise for shop-item-Mperiod combinations that never occurred in the past transactions)
@@ -48,10 +48,10 @@ With MonthlyData.create_items_df_monthly method:
         - if remaining: category averaged price
         - if remaining: global average price
 
-#### Creating a monthly 'categorie sales' table
+#### Creating a monthly 'category sales' table
 With MonthlyData.create_categories_df_monthly method:
-- similar the first step of creating the items table, here we create a total category sales table by performing a grouby (on shop_id, item_category_id, Mperiod) & aggregate operation, by summing the amounts and averaging prices.
-- create a talbe with all possible shop_id-item-category_id-Mperiod combinations
+- similar the first step of creating the items table, here we create a total category sales table by performing a groupby (on shop_id, item_category_id, Mperiod) & aggregate operation, by summing the amounts and averaging prices.
+- create a table with all possible shop_id-item-category_id-Mperiod combinations
 - merge the two tables
 - Fill the NaN's (which arise for shop-category-Mperiod combinations that never occurred in the past transactions), for
     - 'amount': replacing with 0's (meaning 0 sales).
@@ -91,7 +91,7 @@ model_tools.PredictorData.prep_data method, activated during instantiation of th
 ### Model creation, training and validation
 In this project, families of models are defined as classes in separate modules, which define their own specialized methods, and attributes, such as the transformer pipelines specifically suited to each of these model families. These model classes in turn  are derived from a BasePredictor class provided by the model_tools module, which provides the shared methods and attributes relevant for all model classes. 
 
-Here, we have experiemented with 3 models so far:
+Here, we have experimented with 3 models so far:
 - linear_models.LinearRegressor
 - nn_models.TF_NN_Predictor
 - tree_models.LGBM_Predictor
@@ -121,5 +121,5 @@ For the forecasting, we need to
 
 
 ## Design of a Solution Architecture
-Here is a proposed solution architecture for fully pruductinizing the system:
+Here is a proposed solution architecture for fully productionizing the model system:
 ![](images/solution_architecture.png)
