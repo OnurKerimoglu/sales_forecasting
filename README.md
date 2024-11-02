@@ -109,7 +109,7 @@ At this testing phase, training and validation is performed with jupyter noteboo
 - For all models, a cyclic encoder was included in the transformer to account for the seasonality of the month feature
 
 ## Forecasting Pipeline
-For the forecasting, we need to
+For the forecasting, we need to:
 - create the feature table (X) for the next month. For this purpose:
     - shop_id, item_id, item_category_id: copied from the previous month
     - year, month: constructed for the month for which a forecast is needed:
@@ -118,6 +118,7 @@ For the forecasting, we need to
 - transform the features 
 - load a previously saved model
 - use model.predict() method to obtain the predictions
+An example prediction pipeline is provided in [notebooks/Prediction.ipynb](notebooks/Prediction.ipynb).
 
 
 ## Design of a Solution Architecture
